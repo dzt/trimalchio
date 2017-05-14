@@ -22,6 +22,7 @@ function log(msg, type) {
   }
 }
 
+var dev = true
 var prompt = require('prompt');
 var j = require('request').jar();
 var states = require('./states.json');
@@ -29,13 +30,38 @@ var request = require('request').defaults({timeout: 30000, jar: j});
 var _ = require('underscore');
 var cheerio = require('cheerio');
 var phoneFormatter = require('phone-formatter');
+var Nightmare = require('nightmare');
 var fs = require('fs');
+var userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36'
+
+Nightmare.action('show',
+    function (name, options, parent, win, renderer, done) {
+        parent.respondTo('show', function (done) {
+            win.show();
+            done();
+        });
+        done();
+    },
+    function (done) {
+        this.child.call('show', done);
+    });
+
 prompt.message = 'crapeyewear';
 var match,
   styleID,
   config,
   storeID,
+  url,
   checkoutID;
+
+var nightmareCookies = [];
+
+prompt.start({noHandleSIGINT: true});
+
+process.on('SIGINT', function() {
+  console.log("This will execute when you hit CTRL+C");
+  process.exit();
+});
 
 if (fs.existsSync('./config.json')) {
   log('Found an existing config.json, using data from file for current process.', 'warning');
@@ -127,13 +153,14 @@ function findItem(kw, cb) {
     url: 'https://www.crapeyewear.com/products.json',
     method: 'get',
     headers: {
-      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 10_2 like Mac OS X) AppleWebKit/602.3.12 (KHTML, like Gecko) Version/10.0 Mobile/14C92 Safari/602.1'
+      'User-Agent': userAgent
     }
   }, function(err, res, body) {
     if (err) {
       return cb(err, null);
     } else {
       var products = JSON.parse(body);
+
       var foundItems = [];
       for (var i = 0; i < products.products.length; i++) {
         var name = products.products[i].title;
@@ -176,23 +203,33 @@ function findItem(kw, cb) {
 }
 
 function selectStyle() {
-  for (var i = 0; i < match.variants.length; i++) {
-    var styleName = match.variants[i].option1;
-    log(`Style/Size Choice #${i + 1}: "${styleName}"`);
-  }
 
-  prompt.get([
-    {
-      name: 'styleSelect',
-      required: true,
-      description: 'Select a Style # (ex: "1")'
-    }
-  ], function(err, result) {
-    var choice = parseInt(result.styleSelect);
-    styleID = match.variants[choice - 1].id;
-    log(`You selected - "${match.variants[choice - 1].option1}" (${styleID})`);
+  if (match.variants.length === 1) {
+
+    styleID = match.variants[0].id;
+    log(`Style Selected: "${match.variants[0].option1}" (${styleID})`);
     pay();
-  });
+
+  } else {
+
+    for (var i = 0; i < match.variants.length; i++) {
+      var styleName = match.variants[i].option1;
+      log(`Style/Size Choice #${i + 1}: "${styleName}"`);
+    }
+
+    prompt.get([
+      {
+        name: 'styleSelect',
+        required: true,
+        description: 'Select a Style # (ex: "1")'
+      }
+    ], function(err, result) {
+      var choice = parseInt(result.styleSelect);
+      styleID = match.variants[choice - 1].id;
+      log(`You selected - "${match.variants[choice - 1].option1}" (${styleID})`);
+      pay();
+    });
+  }
 }
 
 function pay() {
@@ -201,7 +238,7 @@ function pay() {
     followAllRedirects: true,
     method: 'get',
     headers: {
-      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 10_2 like Mac OS X) AppleWebKit/602.3.12 (KHTML, like Gecko) Version/10.0 Mobile/14C92 Safari/602.1'
+      'User-Agent': userAgent
     }
   }, function(err, res, body) {});
 
@@ -211,7 +248,7 @@ function pay() {
     method: 'post',
     headers: {
       'Origin': 'https://www.crapeyewear.com',
-      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 10_2 like Mac OS X) AppleWebKit/602.3.12 (KHTML, like Gecko) Version/10.0 Mobile/14C92 Safari/602.1',
+      'User-Agent': userAgent,
       'Content-Type': 'application/x-www-form-urlencoded',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
       'Referer': 'https://www.crapeyewear.com/products/' + match.handle,
@@ -227,7 +264,7 @@ function pay() {
       followAllRedirects: true,
       method: 'get',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 10_2 like Mac OS X) AppleWebKit/602.3.12 (KHTML, like Gecko) Version/10.0 Mobile/14C92 Safari/602.1'
+        'User-Agent': userAgent
       }
     }, function(err, res, body) {
       log('Added to cart!');
@@ -237,7 +274,7 @@ function pay() {
         followAllRedirects: true,
         method: 'post',
         headers: {
-          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 10_2 like Mac OS X) AppleWebKit/602.3.12 (KHTML, like Gecko) Version/10.0 Mobile/14C92 Safari/602.1'
+          'User-Agent': userAgent
         },
         formData: {
           'quantity': '1',
@@ -258,13 +295,14 @@ function pay() {
 }
 
 function input(auth_token) {
+  url = `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`
   log(`Checkout URL: https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`)
   request({
     url: `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`,
     followAllRedirects: true,
     headers: {
       'Origin': 'https://www.crapeyewear.com',
-      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 10_2 like Mac OS X) AppleWebKit/602.3.12 (KHTML, like Gecko) Version/10.0 Mobile/14C92 Safari/602.1',
+      'User-Agent': userAgent,
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
       'Referer': 'https://www.crapeyewear.com/',
       'Host': 'www.crapeyewear.com',
@@ -304,7 +342,8 @@ function input(auth_token) {
 
 function ship(auth_token) {
   request({
-    url: `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`, followAllRedirects: true, // redirects to https checkout
+    url: `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`,
+    followAllRedirects: true,
     method: 'post',
     headers: {
       'Origin': 'https://www.crapeyewear.com',
@@ -312,7 +351,7 @@ function ship(auth_token) {
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.8',
       'Referer': `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`,
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36'
+      'User-Agent': userAgent
     },
     formData: {
       'utf8': '✓',
@@ -340,30 +379,57 @@ function ship(auth_token) {
   }, function(err, res, body) {
 
     var $ = cheerio.load(body);
-    var auth_token = $('input[name=authenticity_token]').attr('value');
+    var auth_token = $('.edit_checkout input[name=authenticity_token]').attr('value');
+    console.log('auth_token', auth_token);
+    return submitShipping(auth_token);
 
-    request({
-      url: `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`, followAllRedirects: true, // redirects to https checkout
-      method: 'post',
-      headers: {
-        'Origin': 'https://www.crapeyewear.com',
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.8',
-        'Referer': `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`,
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36'
-      },
-      formData: {
-        '_method': 'patch',
-        'authenticity_token': auth_token,
-        'button': '',
-        'checkout[shipping_rate][id]': 'shopify-FREE%20SHIPPING%20-%20USPS%20Priority%20Mail-0.00',
-        'previous_step': 'shipping_method',
-        'step': 'payment_method',
-        'utf8': '✓'
-      }
-    }, function(err, res, body) {
-      console.log(body);
-    });
   });
+}
+
+function submitShipping(auth_token) {
+  log('Transfering Cookies over to headless session...');
+  var cookies = JSON.stringify(j.getCookies('http://www.crapeyewear.com'));
+  var parsedCookies = JSON.parse(cookies);
+  log(`Number of Cookies discovered: ${parsedCookies.length}`)
+  for (var i = 0; i < parsedCookies.length; i++) {
+    if (parsedCookies[i].value === undefined) {
+      var val = ''
+    } else {
+      var val = parsedCookies[i].value;
+    }
+
+    if (i != 7) {
+      nightmareCookies.push({
+        "url": 'http://www.crapeyewear.com',
+        "name": parsedCookies[i].key,
+        "value": val
+      });
+    }
+  }
+
+      var nm = Nightmare({
+          show: true,
+          typeInterval: 20,
+          alwaysOnTop: false
+      }).useragent(userAgent)
+          .cookies.clearAll()
+          .cookies.set(nightmareCookies);
+
+          nm
+            .goto(url)
+            .insert('#checkout_email', config.email)
+            .insert('#checkout_shipping_address_first_name', config.firstName)
+            .insert('#checkout_shipping_address_last_name', config.lastName)
+            .insert('#checkout_shipping_address_address1', config.address)
+            .insert('#checkout_shipping_address_city', config.city)
+            .select('#checkout_shipping_address_province', states[config.state])
+            .insert('#checkout_shipping_address_zip', config.zipCode)
+            .insert('#checkout_shipping_address_phone', config.phoneNumber)
+            .click('.step__footer__continue-btn')
+            .then(function () {
+                console.log('At page');
+            }).catch(function (err) {
+            console.log('error ', err);
+          });
+
 }
