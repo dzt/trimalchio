@@ -12,6 +12,7 @@
     "cheerio": "^0.22.0",
     "console-stamp": "^0.2.5",
     "nightmare": "^2.10.0",
+    "nightmare-wait-for-url": "0.0.2",
     "node-phone-formatter": "0.0.4",
     "phone-formatter": "0.0.2",
     "prompt": "^1.0.0",

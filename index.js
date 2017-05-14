@@ -31,7 +31,10 @@ var _ = require('underscore');
 var cheerio = require('cheerio');
 var phoneFormatter = require('phone-formatter');
 var Nightmare = require('nightmare');
+var wait = require('nightmare-wait-for-url');
 var fs = require('fs');
+
+var base_url = 'https://www.crapeyewear.com'
 var userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36'
 
 Nightmare.action('show',
@@ -380,7 +383,6 @@ function ship(auth_token) {
 
     var $ = cheerio.load(body);
     var auth_token = $('.edit_checkout input[name=authenticity_token]').attr('value');
-    console.log('auth_token', auth_token);
     return submitShipping(auth_token);
 
   });
@@ -408,7 +410,10 @@ function submitShipping(auth_token) {
   }
 
       var nm = Nightmare({
-          show: true,
+          show: false,
+          openDevTools: {
+            mode: 'detach'
+          },
           typeInterval: 20,
           alwaysOnTop: false
       }).useragent(userAgent)
@@ -426,10 +431,95 @@ function submitShipping(auth_token) {
             .insert('#checkout_shipping_address_zip', config.zipCode)
             .insert('#checkout_shipping_address_phone', config.phoneNumber)
             .click('.step__footer__continue-btn')
+            .wait('.radio__input')
+            .click('.step__footer__continue-btn')
             .then(function () {
-                console.log('At page');
+                console.log('Card information sending...');
+                request({
+                  url: `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}?previous_step=shipping_method&step=payment_method`,
+                  followAllRedirects: true,
+                  method: 'get',
+                  headers: {
+                    'User-Agent': userAgent
+                  }
+                }, function(err, res, body) {
+                  var $ = cheerio.load(body);
+                  var auth_token = $('form[data-payment-form=""] input[name=authenticity_token]').attr('value');
+                  var price = $('input[name="checkout[total_price]"]').attr('value');
+                  var payment_gateway = $('input[name="checkout[payment_gateway]"]').attr('value');
+                  log(auth_token)
+                  log(`Price: ${price}`);
+                  log(`Payment Gateway ID: ${payment_gateway}`);
+                  submitCC(auth_token, price, payment_gateway);
+                });
             }).catch(function (err) {
             console.log('error ', err);
           });
+}
 
+function submitCC(auth_token, price, payment_gateway) {
+  request({
+    url: `https://elb.deposit.shopifycs.com/sessions`,
+    followAllRedirects: true,
+    method: 'post',
+    headers: {
+      'User-Agent': userAgent,
+      'Content-Type': 'application/json'
+    },
+    json: {
+      "credit_card": {
+        "number": config.ccn,
+        "name": config.firstName + ' ' + config.lastName,
+        "month": config.month,
+        "year": config.year
+      }
+    }
+  }, function(err, res, body) {
+    var sValue = body.id;
+    request({
+      url: `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`,
+      followAllRedirects: true,
+      method: 'post',
+      headers: {
+        'Origin': 'https://www.crapeyewear.com',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.8',
+        'Referer': `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`,
+        'User-Agent': userAgent
+      },
+      formData: {
+        'utf8':'✓',
+        '_method':'patch',
+        'authenticity_token': auth_token,
+        'previous_step': 'payment_method',
+        'step': '',
+        's': sValue,
+        'checkout[payment_gateway]':payment_gateway,
+        'checkout[credit_card][vault]':'false',
+        'checkout[different_billing_address]':'false',
+        'checkout[billing_address][first_name]': config.firstName,
+        'checkout[billing_address][last_name]': config.lastName,
+        'checkout[billing_address][company]': '',
+        'checkout[billing_address][address1]':config.address,
+        'checkout[billing_address][address2]': '',
+        'checkout[billing_address][city]': config.city,
+        'checkout[billing_address][country]':'United States',
+        'checkout[billing_address][province]': states[config.state],
+        'checkout[billing_address][zip]': config.zipCode,
+        'checkout[billing_address][phone]': phoneFormatter.format(config.phoneNumber, "(NNN) NNN-NNNN"),
+        'checkout[total_price]': price,
+        'complete':'1',
+        'checkout[client_details][browser_width]': '979',
+        'checkout[client_details][browser_height]': '631',
+        'checkout[client_details][javascript_enabled]': '1',
+      }
+    }, function(err, res, body) {
+      if (dev) {
+        fs.writeFile('test.html', body, function(err) {
+          log('test.html saved');
+        });
+      }
+    });
+  });
 }
