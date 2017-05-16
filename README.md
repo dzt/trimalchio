@@ -22,6 +22,7 @@ $ node index.js
 
 - [ ] Proxy Support
 - [ ] General Shopify Support
+- [ ] Sitemap Support
 
 ### Who
 Written by <a href="http://petersoboyejo.com/">@dzt</a>, made better by you.

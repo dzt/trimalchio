@@ -22,7 +22,7 @@ function log(msg, type) {
   }
 }
 
-var dev = true
+var dev = true;
 var prompt = require('prompt');
 var j = require('request').jar();
 var states = require('./states.json');
@@ -35,7 +35,7 @@ var wait = require('nightmare-wait-for-url');
 var http = require('http');
 var fs = require('fs');
 
-var shipping_pole_timeout = 4000;
+//var shipping_pole_timeout = 4000;
 var base_url = 'https://www.crapeyewear.com'
 var userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36'
 
@@ -129,6 +129,10 @@ if (fs.existsSync('./config.json')) {
       name: 'email',
       required: true,
       description: 'Email Address'
+    }, {
+      name: 'shipping_pole_timeout',
+      required: true,
+      description: 'Timeout Delay (ms) for polling shipping Rates (Recommended: 2500)'
     }
   ], function(err, result) {
     config = result
@@ -414,7 +418,7 @@ function submitShipping(shipping_pole_url) {
   // WTF IS THIS RETURNING A 202 (UPDATE: FIXED)
 
   log(`Shipping Poll URL: https://www.crapeyewear.com${shipping_pole_url}`);
-  log(`Timing out Shipping for ${shipping_pole_timeout}ms`)
+  log(`Timing out Shipping for ${config.shipping_pole_timeout}ms`)
 
   setTimeout(function() {
     request({
@@ -467,7 +471,7 @@ function submitShipping(shipping_pole_url) {
       });
     });
 
-  }, shipping_pole_timeout);
+  }, parseInt(config.shipping_pole_timeout));
 
 }
 
