@@ -22,6 +22,7 @@ $ node index.js
 
 - [ ] Proxy Support
 - [ ] General Shopify Support
+- [ ] Time Scheduler
 - [ ] Sitemap Support
 
 ### Who
