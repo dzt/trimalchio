@@ -35,8 +35,10 @@ var cheerio = require('cheerio');
 var phoneFormatter = require('phone-formatter');
 var Nightmare = require('nightmare');
 var wait = require('nightmare-wait-for-url');
+var http = require('http');
 var fs = require('fs');
 
+var shipping_pole_timeout = 4000;
 var base_url = 'https://www.crapeyewear.com'
 var userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36'
 
@@ -381,19 +383,12 @@ function ship(auth_token) {
     }, function(err, res, body) {
 
         var $ = cheerio.load(body);
-        var auth_token = $('.edit_checkout input[name=authenticity_token]').attr('value');
-        var shipping_pole_url = 'https://www.crapeyewear.com' + $('div[data-poll-refresh="[data-step=shipping_method]"]').attr('data-poll-target');
-        log(`Shipping Poll URL: ${shipping_pole_url}`);
-        if (dev) {
-            fs.writeFile('test.html', body, function(err) {
-                log('test.html saved');
-            });
-        }
-        return submitShipping(auth_token, shipping_pole_url);
+        var shipping_pole_url = $('div[data-poll-refresh="[data-step=shipping_method]"]').attr('data-poll-target');
+        return submitShipping(shipping_pole_url);
     });
 }
 
-function submitShipping(auth_token, shipping_pole_url) {
+function submitShipping(shipping_pole_url) {
 
     /* RIP Nightmarejs lol
     log('Transfering Cookies over to headless session...');
@@ -417,24 +412,28 @@ function submitShipping(auth_token, shipping_pole_url) {
     }
     */
 
-    // WTF IS THIS RETURNING A 202
+    // WTF IS THIS RETURNING A 202 (UPDATE: FIXED)
+
+    log(`Shipping Poll URL: https://www.crapeyewear.com${shipping_pole_url}`);
+    log(`Timing out Shipping for ${shipping_pole_timeout}ms`)
+
+    setTimeout(function(){
     request({
-        url: shipping_pole_url,
-        followAllRedirects: true,
+        url: 'https://www.crapeyewear.com' + shipping_pole_url,
         method: 'get',
         headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'User-Agent': userAgent
         }
     }, function(err, res, body) {
-        console.error(err)
-        console.log(res.statusCode)
-        console.log('THE FUCKING BODY:', body);
+
         var $ = cheerio.load(body);
 
-        var shipping_method_value = $('.radio__label').attr('for');
+        var shipping_method_value = $('.radio-wrapper').attr('data-shipping-method');
         var auth_token = $('form[data-shipping-method-form="true"] input[name="authenticity_token"]').attr('value')
 
         log(`Shipping Method Value: ${shipping_method_value}`)
+        log(`Authhhhhh ${auth_token}`)
         log('Card information sending...');
 
         request({
@@ -456,6 +455,12 @@ function submitShipping(auth_token, shipping_pole_url) {
             }
         }, function(err, res, body) {
 
+            if (dev) {
+                fs.writeFile('test.html', body, function(err) {
+                    log('test.html saved');
+                });
+            }
+
             var $ = cheerio.load(body);
 
             var price = $('input[name="checkout[total_price]"]').attr('value');
@@ -468,6 +473,8 @@ function submitShipping(auth_token, shipping_pole_url) {
             submitCC(auth_token, price, payment_gateway);
         });
     });
+
+  }, shipping_pole_timeout);
 
 }
 
