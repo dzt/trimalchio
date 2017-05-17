@@ -35,8 +35,9 @@ var wait = require('nightmare-wait-for-url');
 var http = require('http');
 var fs = require('fs');
 
-//var shipping_pole_timeout = 4000;
-var base_url = 'https://www.crapeyewear.com'
+var base_url = 'https://www.crapeyewear.com';
+//var base_url = 'https://shop.exclucitylife.com';
+
 var userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36'
 
 Nightmare.action('show', function(name, options, parent, win, renderer, done) {
@@ -49,22 +50,18 @@ Nightmare.action('show', function(name, options, parent, win, renderer, done) {
   this.child.call('show', done);
 });
 
-prompt.message = 'crapeyewear';
+prompt.message = 'Input';
 var match,
   styleID,
   config,
   storeID,
   url,
+  checkoutHost,
   checkoutID;
 
 var nightmareCookies = [];
 
 prompt.start({noHandleSIGINT: true});
-
-process.on('SIGINT', function() {
-  console.log("This will execute when you hit CTRL+C");
-  process.exit();
-});
 
 if (fs.existsSync('./config.json')) {
   log('Found an existing config.json, using data from file for current process.', 'warning');
@@ -157,7 +154,7 @@ function start() {
 
 function findItem(kw, cb) {
   request({
-    url: 'https://www.crapeyewear.com/products.json',
+    url: `${base_url}/products.json`,
     method: 'get',
     headers: {
       'User-Agent': userAgent
@@ -241,7 +238,7 @@ function selectStyle() {
 
 function pay() {
   request({
-    url: 'https://www.crapeyewear.com/products/' + match.handle,
+    url: `${base_url}/products/` + match.handle,
     followAllRedirects: true,
     method: 'get',
     headers: {
@@ -250,15 +247,15 @@ function pay() {
   }, function(err, res, body) {});
 
   request({
-    url: 'https://www.crapeyewear.com/cart/add.js',
+    url: `${base_url}/cart/add.js`,
     followAllRedirects: true,
     method: 'post',
     headers: {
-      'Origin': 'https://www.crapeyewear.com',
+      'Origin': base_url,
       'User-Agent': userAgent,
       'Content-Type': 'application/x-www-form-urlencoded',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Referer': 'https://www.crapeyewear.com/products/' + match.handle,
+      'Referer': base_url + '/products/' + match.handle,
       'Accept-Language': 'en-US,en;q=0.8'
     },
     formData: {
@@ -267,7 +264,7 @@ function pay() {
     }
   }, function(err, res, body) {
     request({
-      url: 'https://www.crapeyewear.com/cart',
+      url: `${base_url}/cart`,
       followAllRedirects: true,
       method: 'get',
       headers: {
@@ -275,9 +272,9 @@ function pay() {
       }
     }, function(err, res, body) {
       log('Added to cart!');
-      log('Checking out your item!');
+      log('Checking out your item...');
       request({
-        url: 'https://www.crapeyewear.com/cart',
+        url: `${base_url}/cart`,
         followAllRedirects: true,
         method: 'post',
         headers: {
@@ -289,9 +286,17 @@ function pay() {
         }
       }, function(err, res, body) {
 
+        checkoutHost = 'https://' + res.request.originalHost
+
+        if (res.request.href.indexOf('stock_problems') > -1) {
+          log(`This item is currently Sold Out, sorry for the inconvenience`);
+          process.exit(1);
+        }
+
         var $ = cheerio.load(body);
-        checkoutID = $('.edit_checkout').attr('action').split('checkouts/')[1];
-        storeID = $('.edit_checkout').attr('action').split('/')[1];
+        url = res.request.href
+        checkoutID = url.split('checkouts/')[1];
+        storeID = url.split('/')[3];
         var auth_token = $('input[name=authenticity_token]').attr('value');
         log(`Store ID: ${storeID}`)
         log(`Checkout ID: ${checkoutID}`)
@@ -302,17 +307,15 @@ function pay() {
 }
 
 function input(auth_token) {
-  url = `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`
-  log(`Checkout URL: https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`)
+  log(`Checkout URL: ${url}`)
   request({
-    url: `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`,
+    url: url,
     followAllRedirects: true,
     headers: {
-      'Origin': 'https://www.crapeyewear.com',
+      'Origin': `${checkoutHost}`,
       'User-Agent': userAgent,
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Referer': 'https://www.crapeyewear.com/',
-      'Host': 'www.crapeyewear.com',
+      'Referer': `${checkoutHost}/`,
       'Accept-Language': 'en-US,en;q=0.8'
     },
     method: 'get',
@@ -343,24 +346,15 @@ function input(auth_token) {
     }
   }, function(err, res, body) {
     var $ = cheerio.load(body);
+    console.log(res.statusCode);
     return ship($('input[name=authenticity_token]').attr('value'));
   });
 }
 
 function ship(auth_token) {
-  request({
-    url: `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`,
-    followAllRedirects: true,
-    method: 'post',
-    headers: {
-      'Origin': 'https://www.crapeyewear.com',
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.8',
-      'Referer': `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`,
-      'User-Agent': userAgent
-    },
-    formData: {
+
+  if (url.indexOf('checkout.shopify.com') > -1) {
+    var form = {
       'utf8': '✓',
       '_method': 'patch',
       'authenticity_token': auth_token,
@@ -383,10 +377,57 @@ function ship(auth_token) {
       'previous_step': 'contact_information',
       'step': 'shipping_method'
     }
-  }, function(err, res, body) {
+  } else {
+    var form = {
+      'utf8': '✓',
+      '_method': 'patch',
+      'authenticity_token': auth_token,
+      'button': '',
+      'checkout[email]': config.email,
+      'checkout[shipping_address][first_name]': config.firstName,
+      'checkout[shipping_address][last_name]': config.lastName,
+      'checkout[shipping_address][company]': '',
+      'checkout[shipping_address][address1]': config.address,
+      'checkout[shipping_address][address2]': '',
+      'checkout[shipping_address][city]': config.city,
+      'checkout[shipping_address][country]': 'United States',
+      'checkout[shipping_address][province]': states[config.state],
+      'checkout[shipping_address][zip]': config.zipCode,
+      'checkout[shipping_address][phone]': phoneFormatter.format(config.phoneNumber, "(NNN) NNN-NNNN"),
+      'checkout[remember_me]': '0',
+      'checkout[client_details][browser_width]': '979',
+      'checkout[client_details][browser_height]': '631',
+      'checkout[client_details][javascript_enabled]': '1',
+      'previous_step': 'contact_information',
+      'step': 'shipping_method'
+    }
+  }
 
+  request({
+    url: url,
+    followAllRedirects: true,
+    method: 'post',
+    headers: {
+      'Origin': `${checkoutHost}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.8',
+      'Referer': `${checkoutHost}/${storeID}/checkouts/${checkoutID}`,
+      'User-Agent': userAgent
+    },
+    formData: form
+  }, function(err, res, body) {
+    if (dev) {
+      fs.writeFile('debug.html', body, function(err) {
+        log('The file debug.html was saved the root of the project file.');
+      });
+    }
     var $ = cheerio.load(body);
     var shipping_pole_url = $('div[data-poll-refresh="[data-step=shipping_method]"]').attr('data-poll-target');
+    if (shipping_pole_url === undefined) {
+      log(`${base_url} is Incompatible, sorry for the inconvenience`);
+      process.exit(1);
+    }
     return submitShipping(shipping_pole_url);
   });
 }
@@ -417,12 +458,12 @@ function submitShipping(shipping_pole_url) {
 
   // WTF IS THIS RETURNING A 202 (UPDATE: FIXED)
 
-  log(`Shipping Poll URL: https://www.crapeyewear.com${shipping_pole_url}`);
+  log(`Shipping Poll URL: ${checkoutHost}${shipping_pole_url}`);
   log(`Timing out Shipping for ${config.shipping_pole_timeout}ms`)
 
   setTimeout(function() {
     request({
-      url: 'https://www.crapeyewear.com' + shipping_pole_url,
+      url: checkoutHost + shipping_pole_url,
       method: 'get',
       headers: {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -439,7 +480,7 @@ function submitShipping(shipping_pole_url) {
       log('Card information sending...');
 
       request({
-        url: `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`,
+        url: url,
         followAllRedirects: true,
         method: 'post',
         headers: {
@@ -499,15 +540,15 @@ function submitCC(new_auth_token, price, payment_gateway) {
     var sValue = JSON.parse(body).id;
 
     request({
-      url: `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`,
+      url: url,
       followAllRedirects: true,
       method: 'post',
       headers: {
-        'Origin': 'https://www.crapeyewear.com',
+        'Origin': checkoutHost,
         'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.8',
-        'Referer': `https://www.crapeyewear.com/${storeID}/checkouts/${checkoutID}`,
+        'Referer': `${checkoutHost}/${storeID}/checkouts/${checkoutID}`,
         'User-Agent': userAgent
       },
       formData: {
@@ -537,12 +578,6 @@ function submitCC(new_auth_token, price, payment_gateway) {
         'checkout[client_details][javascript_enabled]': '1'
       }
     }, function(err, res, body) {
-
-      if (dev) {
-        fs.writeFile('test.html', body, function(err) {
-          log('test.html saved');
-        });
-      }
 
       var $ = cheerio.load(body);
 
