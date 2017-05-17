@@ -35,8 +35,8 @@ var wait = require('nightmare-wait-for-url');
 var http = require('http');
 var fs = require('fs');
 
-var base_url = 'https://www.crapeyewear.com';
-//var base_url = 'https://shop.exclucitylife.com';
+//var base_url = 'https://www.crapeyewear.com';
+var base_url = 'https://fuckingawesomestore.com';
 
 var userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36'
 
@@ -308,18 +308,44 @@ function pay() {
 
 function input(auth_token) {
   log(`Checkout URL: ${url}`)
-  request({
-    url: url,
-    followAllRedirects: true,
-    headers: {
-      'Origin': `${checkoutHost}`,
-      'User-Agent': userAgent,
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Referer': `${checkoutHost}/`,
-      'Accept-Language': 'en-US,en;q=0.8'
-    },
-    method: 'get',
-    qs: {
+
+  if (url.indexOf('checkout.shopify.com') > -1) {
+    log(`Checkout with checkout.shopify.com discovered`)
+    var form = {
+      'utf8':'✓',
+      '_method':'patch',
+      'authenticity_token': auth_token,
+      'previous_step':'contact_information',
+      'step':'shipping_method',
+      'checkout[email]':config.email,
+      'checkout[buyer_accepts_marketing]':'1',
+      'checkout[shipping_address][first_name]':config.firstName,
+      'checkout[shipping_address][last_name]':config.lastName,
+      'checkout[shipping_address][company]': '',
+      'checkout[shipping_address][address1]':config.address,
+      'checkout[shipping_address][address2]': '',
+      'checkout[shipping_address][city]': config.city,
+      'checkout[shipping_address][country]':'US',
+      'checkout[shipping_address][province]': config.state,
+      'checkout[shipping_address][zip]': config.zipCode,
+      'checkout[shipping_address][phone]': config.phoneNumber,
+      'checkout[shipping_address][first_name]': config.firstName,
+      'checkout[shipping_address][last_name]': config.lastName,
+      'checkout[shipping_address][company]': '',
+      'checkout[shipping_address][address1]': config.address,
+      'checkout[shipping_address][address2]': '',
+      'checkout[shipping_address][city]': config.city,
+      'checkout[shipping_address][country]':'United States',
+      'checkout[shipping_address][province]':states[config.state],
+      'checkout[shipping_address][zip]': config.zipCode,
+      'checkout[shipping_address][phone]': config.phoneNumber,
+      'checkout[remember_me]': '0',
+      'button': '',
+      'checkout[client_details][browser_width]': '979',
+      'checkout[client_details][browser_height]': '631'
+    }
+  } else {
+    var form = {
       'utf8': '✓',
       '_method': 'patch',
       'authenticity_token': auth_token,
@@ -344,6 +370,20 @@ function input(auth_token) {
       'checkout[client_details][javascript_enabled]': '1',
       'step': 'contact_information'
     }
+  }
+
+  request({
+    url: url,
+    followAllRedirects: true,
+    headers: {
+      'Origin': `${checkoutHost}`,
+      'User-Agent': userAgent,
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Referer': `${checkoutHost}/`,
+      'Accept-Language': 'en-US,en;q=0.8'
+    },
+    method: 'get',
+    qs: form
   }, function(err, res, body) {
     var $ = cheerio.load(body);
     console.log(res.statusCode);
@@ -354,28 +394,39 @@ function input(auth_token) {
 function ship(auth_token) {
 
   if (url.indexOf('checkout.shopify.com') > -1) {
+    log(`Checkout with checkout.shopify.com discovered`)
     var form = {
-      'utf8': '✓',
-      '_method': 'patch',
+      'utf8':'✓',
+      '_method':'patch',
       'authenticity_token': auth_token,
-      'button': '',
-      'checkout[email]': config.email,
+      'previous_step':'contact_information',
+      'step':'shipping_method',
+      'checkout[email]':config.email,
+      'checkout[buyer_accepts_marketing]':'1',
+      'checkout[shipping_address][first_name]':config.firstName,
+      'checkout[shipping_address][last_name]':config.lastName,
+      'checkout[shipping_address][company]': '',
+      'checkout[shipping_address][address1]':config.address,
+      'checkout[shipping_address][address2]': '',
+      'checkout[shipping_address][city]': config.city,
+      'checkout[shipping_address][country]':'US',
+      'checkout[shipping_address][province]': config.state,
+      'checkout[shipping_address][zip]': config.zipCode,
+      'checkout[shipping_address][phone]': config.phoneNumber,
       'checkout[shipping_address][first_name]': config.firstName,
       'checkout[shipping_address][last_name]': config.lastName,
       'checkout[shipping_address][company]': '',
       'checkout[shipping_address][address1]': config.address,
       'checkout[shipping_address][address2]': '',
       'checkout[shipping_address][city]': config.city,
-      'checkout[shipping_address][country]': 'United States',
-      'checkout[shipping_address][province]': states[config.state],
+      'checkout[shipping_address][country]':'United States',
+      'checkout[shipping_address][province]':states[config.state],
       'checkout[shipping_address][zip]': config.zipCode,
-      'checkout[shipping_address][phone]': phoneFormatter.format(config.phoneNumber, "(NNN) NNN-NNNN"),
+      'checkout[shipping_address][phone]': config.phoneNumber,
       'checkout[remember_me]': '0',
+      'button': '',
       'checkout[client_details][browser_width]': '979',
-      'checkout[client_details][browser_height]': '631',
-      'checkout[client_details][javascript_enabled]': '1',
-      'previous_step': 'contact_information',
-      'step': 'shipping_method'
+      'checkout[client_details][browser_height]': '631'
     }
   } else {
     var form = {
