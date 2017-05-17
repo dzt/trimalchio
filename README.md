@@ -23,7 +23,7 @@ $ node index.js
 Launch Flags (not added yet):
 ```
   --restock   Run in Restock Mode with keywords from your config file.
-                           
+
   --new       Picks up newly added items, instead of using keywords.
 ```
 
@@ -33,6 +33,7 @@ Launch Flags (not added yet):
 - [ ] General Shopify Support
 - [ ] Time Scheduler
 - [ ] Sitemap Support
+- [ ] Better Error Handling
 
 ### Who
 Written by <a href="http://petersoboyejo.com/">@dzt</a>, made better by you.

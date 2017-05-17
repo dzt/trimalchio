@@ -565,9 +565,9 @@ function submitShipping(res) {
                     var payment_gateway = $('input[name="checkout[payment_gateway]"]').attr('value');
                     var new_auth_token = $('form[data-payment-form=""] input[name="authenticity_token"]').attr('value');
 
-                    log(`Final Auth Token: ${new_auth_token}`);
-                    log(`Price: ${price}`);
-                    log(`Payment Gateway ID: ${payment_gateway}`);
+                    // log(`Final Auth Token: ${new_auth_token}`);
+                    // log(`Price: ${price}`);
+                    // log(`Payment Gateway ID: ${payment_gateway}`);
 
                     submitCC(new_auth_token, price, payment_gateway);
                 });
