@@ -1,5 +1,5 @@
 # trimalchio
-Shopify Bot
+Easy to use Shopify Bot, works for a majority of Shopify websites but still could use some work. This project is still under active development so please do not spam my email <3.
 
 ![term](http://i.imgur.com/HHyh0KG.png)
 
