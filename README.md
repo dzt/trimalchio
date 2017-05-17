@@ -20,6 +20,13 @@ Run After Setup:
 $ node index.js
 ```
 
+Launch Flags (not added yet):
+```
+  --restock   Run in Restock Mode with keywords from your config file.
+                           
+  --new       Picks up newly added items, instead of using keywords.
+```
+
 **When you are prompted to set up everything, a `config.json` file will be generated with all all your configurations allowing you to simply edit the values.**
 
 - [ ] Proxy Support
