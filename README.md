@@ -5,7 +5,7 @@ Easy to use Shopify Bot, works for a majority of Shopify websites but still coul
 
 ### Installation
 
-trimalchio requires [Node.js](http://nodejs.org/).
+trimalchio requires [Node.js](http://nodejs.org/). (*Be sure to download the LTS version).
 
 Setup:
 
@@ -19,6 +19,8 @@ Run After Setup:
 ```sh
 $ node index.js
 ```
+
+**When you are prompted to set up everything, a `config.json` file will be generated with all all your configurations allowing you to simply edit the values.**
 
 - [ ] Proxy Support
 - [ ] General Shopify Support
