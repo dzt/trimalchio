@@ -27,7 +27,7 @@ var prompt = require('prompt');
 var j = require('request').jar();
 var states = require('./states.json');
 var request = require('request').defaults({
-    timeout: 30000,
+    timeout: 10000,
     jar: j
 });
 var _ = require('underscore');
@@ -38,9 +38,8 @@ var wait = require('nightmare-wait-for-url');
 var http = require('http');
 var fs = require('fs');
 
-var base_url = 'https://www.crapeyewear.com';
-//var base_url = 'https://fuckingawesomestore.com';
-
+//var base_url = 'https://www.crapeyewear.com';
+var base_url;
 var userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36'
 
 Nightmare.action('show', function(name, options, parent, win, renderer, done) {
@@ -71,10 +70,15 @@ prompt.start({
 if (fs.existsSync('./config.json')) {
     log('Found an existing config.json, using data from file for current process.', 'warning');
     config = require('./config.json');
+    base_url = config.base_url
     start();
     log(`Looking for Keyword(s) matching "${config.keywords}"`);
 } else {
     prompt.get([{
+        name: 'base_url',
+        required: true,
+        description: 'Store URL (ex: "https://store.illegalcivilization.com")'
+    }, {
         name: 'keywords',
         required: true,
         description: 'Keyword(s)'
@@ -88,10 +92,12 @@ if (fs.existsSync('./config.json')) {
         description: 'Name on CC'
     }, {
         name: 'month',
+        type: 'integer',
         required: true,
         description: 'CC Exp Month (ex: 3, 6, 12)'
     }, {
         name: 'year',
+        type: 'integer',
         required: true,
         description: 'CC Exp Year (ex: 2019)'
     }, {
@@ -132,10 +138,12 @@ if (fs.existsSync('./config.json')) {
         description: 'Email Address'
     }, {
         name: 'shipping_pole_timeout',
+        type: 'integer',
         required: true,
         description: 'Timeout Delay (ms) for polling shipping Rates (Recommended: 2500)'
     }], function(err, result) {
         config = result
+        base_url = config.base_url
         fs.writeFile('config.json', JSON.stringify(result, null, 4), function(err) {
             log('Config file generated! Starting process...');
             log(`Looking for Keyword(s) matching "${config.keywords}"`);
@@ -164,10 +172,10 @@ function findItem(kw, cb) {
         }
     }, function(err, res, body) {
         if (err) {
+            log(err)
             return cb(err, null);
         } else {
             var products = JSON.parse(body);
-
             var foundItems = [];
             for (var i = 0; i < products.products.length; i++) {
                 var name = products.products[i].title;

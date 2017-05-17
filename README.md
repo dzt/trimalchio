@@ -1,17 +1,17 @@
-# crapeyewear
-Auto Checkout Script for crapeyewear.com (Shopify Based)
+# trimalchio
+Shopify Bot
 
 ![term](http://i.imgur.com/HHyh0KG.png)
 
 ### Installation
 
-crapeyewear requires [Node.js](http://nodejs.org/).
+trimalchio requires [Node.js](http://nodejs.org/).
 
 Setup:
 
 ```sh
-$ git clone https://github.com/dzt/crapeyewear.git
-$ cd crapeyewear
+$ git clone https://github.com/dzt/trimalchio.git
+$ cd trimalchio
 $ npm install
 ```
 Run After Setup:
