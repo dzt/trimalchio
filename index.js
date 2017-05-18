@@ -179,7 +179,7 @@ function findItem(kw, cb) {
             var foundItems = [];
             for (var i = 0; i < products.products.length; i++) {
                 var name = products.products[i].title;
-                if (name.indexOf(config.keywords) > -1) {
+                if (name.toLowerCase().indexOf(config.toLowerCase().keywords) > -1) {
                     foundItems.push(products.products[i]);
                 }
             }
