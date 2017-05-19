@@ -33,7 +33,7 @@ var request = require('request').defaults({
 var _ = require('underscore');
 var cheerio = require('cheerio');
 var phoneFormatter = require('phone-formatter');
-var Nightmare = require('nightmare');
+//var Nightmare = require('nightmare');
 var wait = require('nightmare-wait-for-url');
 var http = require('http');
 var fs = require('fs');
@@ -42,6 +42,7 @@ var fs = require('fs');
 var base_url;
 var userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36'
 
+/*
 Nightmare.action('show', function(name, options, parent, win, renderer, done) {
     parent.respondTo('show', function(done) {
         win.show();
@@ -51,6 +52,7 @@ Nightmare.action('show', function(name, options, parent, win, renderer, done) {
 }, function(done) {
     this.child.call('show', done);
 });
+*/
 
 prompt.message = 'Input';
 var match,
