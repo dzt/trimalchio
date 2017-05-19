@@ -34,7 +34,7 @@ var _ = require('underscore');
 var cheerio = require('cheerio');
 var phoneFormatter = require('phone-formatter');
 //var Nightmare = require('nightmare');
-var wait = require('nightmare-wait-for-url');
+//var wait = require('nightmare-wait-for-url');
 var http = require('http');
 var fs = require('fs');
 
