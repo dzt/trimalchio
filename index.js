@@ -142,6 +142,7 @@ if (fs.existsSync('./config.json')) {
         required: true,
         description: 'Timeout Delay (ms) for polling shipping Rates (Recommended: 2500)'
     }], function(err, result) {
+        result.show_stock = false;
         config = result
         base_url = config.base_url
         fs.writeFile('config.json', JSON.stringify(result, null, 4), function(err) {
@@ -175,7 +176,12 @@ function findItem(kw, cb) {
             log(err)
             return cb(err, null);
         } else {
-            var products = JSON.parse(body);
+             try {
+               var products = JSON.parse(body);
+             } catch (e) {
+               log(`This site is incompatible, sorry for the inconvenience.`);
+               process.exit(1);
+             }
             var foundItems = [];
             for (var i = 0; i < products.products.length; i++) {
                 var name = products.products[i].title;
@@ -215,25 +221,79 @@ function findItem(kw, cb) {
     });
 }
 
+var findVariantStock = function(handle, id, cb) {
+  request({
+      url: `${base_url}/products/` + handle + '.json',
+      followAllRedirects: true,
+      method: 'get',
+      headers: {
+          'User-Agent': userAgent
+      }
+  }, function(err, res, body) {
+
+    try {
+      var variants = JSON.parse(body).product.variants;
+    } catch(e) {
+      return cb(true, null);
+    }
+
+    var res = _.findWhere(variants, {id: id});
+    if (res.inventory_quantity) {
+      return cb(null, res.inventory_quantity);
+    } else {
+      return cb(null, 'Unavailable');
+    }
+
+  });
+};
+
 function selectStyle() {
 
     if (match.variants.length === 1) {
 
+        var singleItemStock;
         styleID = match.variants[0].id;
-        log(`Style Selected: "${match.variants[0].option1}" (${styleID})`);
+        log(match.variants[0])
+
+        if (config.show_stock == false) {
+          stock = 'Unavailable'
+        } else {
+          findVariantStock(match.handle, match.variants[0].id, function(err, res) {
+            if (err) {
+              singleItemStock = 'Unavailable'
+            } else {
+              singleItemStock = res;
+            }
+          });
+        }
+
+        log(`Style Selected: "${match.variants[0].option1}" (${styleID}) | Stock: ${singleItemStock}`);
         pay();
 
     } else {
 
         for (var i = 0; i < match.variants.length; i++) {
             var styleName = match.variants[i].option1;
-
             var option2 = match.variants[i].option2;
 
-            if (option2  == null) {
-                log(`Style/Size Choice #${i + 1}: "${styleName}"`);
+            var stock;
+            if (config.show_stock == false) {
+              stock = 'Unavailable'
             } else {
-                log(`Style/Size Choice #${i + 1}: "${styleName}" - ${option2}`);
+              findVariantStock(match.handle, match.variants[i].id, function(err, res) {
+                if (err) {
+                  stock = 'Unavailable'
+                } else {
+                  stock = res;
+                }
+              });
+            }
+
+
+            if (option2  == null) {
+                log(`Style/Size Choice #${i + 1}: "${styleName}" | Stock: ${stock})`);
+            } else {
+                log(`Style/Size Choice #${i + 1}: "${styleName}" - ${option2} | Stock: ${stock}`);
             }
         }
 
