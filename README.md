@@ -34,6 +34,7 @@ Launch Flags (not added yet):
 - [ ] Time Scheduler
 - [ ] Sitemap Support
 - [ ] Better Error Handling
+- [ ] Show Stock Count
 
 ### Who
 Written by <a href="http://petersoboyejo.com/">@dzt</a>, made better by you.

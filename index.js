@@ -253,7 +253,6 @@ function selectStyle() {
 
         var singleItemStock;
         styleID = match.variants[0].id;
-        log(match.variants[0])
 
         if (config.show_stock == false) {
           stock = 'Unavailable'
@@ -261,14 +260,15 @@ function selectStyle() {
           findVariantStock(match.handle, match.variants[0].id, function(err, res) {
             if (err) {
               singleItemStock = 'Unavailable'
+              log(`Style Selected: "${match.variants[0].option1}" (${styleID}) | Stock: Unavailable`);
+              pay();
             } else {
-              singleItemStock = res;
+              log(`Style Selected: "${match.variants[0].option1}" (${styleID}) | Stock: ${res}`);
+              pay();
             }
           });
         }
 
-        log(`Style Selected: "${match.variants[0].option1}" (${styleID}) | Stock: ${singleItemStock}`);
-        pay();
 
     } else {
 
