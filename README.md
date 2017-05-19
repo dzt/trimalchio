@@ -37,6 +37,8 @@ Launch Flags (not added yet):
 - [x] Show Stock Count
 - [ ] Queue support
 - [ ] Negative Keywords
+- [ ] Multiple Tasks
+- [ ] Slack Integration 
 
 ### Who
 Written by <a href="http://petersoboyejo.com/">@dzt</a>, made better by you.
