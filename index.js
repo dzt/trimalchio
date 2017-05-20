@@ -22,7 +22,7 @@ function log(msg, type) {
     }
 }
 
-var dev = false;
+var dev = true;
 var prompt = require('prompt');
 var j = require('request').jar();
 var states = require('./states.json');
@@ -79,7 +79,7 @@ if (fs.existsSync('./config.json')) {
     prompt.get([{
         name: 'base_url',
         required: true,
-        description: 'Store URL (ex: "https://store.illegalcivilization.com")'
+        description: 'Store URL (ex: "https://store.illegalcivilization.com" or provide sitemap url)'
     }, {
         name: 'keywords',
         required: true,
@@ -167,6 +167,34 @@ function start() {
 }
 
 function findItem(kw, cb) {
+
+    if (config.base_url.endsWith(".xml")) {
+      var parseString = require('xml2js').parseString;
+
+      request({
+          url: config.base_url,
+          method: 'get',
+          headers: {
+              'User-Agent': userAgent
+          }
+      }, function(err, res, body) {
+
+        parseString(body, function (err, result) {
+            if (err) {
+              log('An error occured while trying to parse the sitemap provided', 'error');
+              process.exit(1);
+            }
+            log('result.length '+ result.length)
+            if (dev) {
+                fs.writeFile('debug.html', result, function(err) {
+                    log('The file debug.html was saved the root of the project file.');
+                });
+            }
+        });
+      });
+
+    } else {
+
     request({
         url: `${base_url}/products.json`,
         method: 'get',
@@ -221,6 +249,7 @@ function findItem(kw, cb) {
 
         }
     });
+  }
 }
 
 var findVariantStock = function(handle, id, cb) {
@@ -270,7 +299,6 @@ function selectStyle() {
             }
           });
         }
-
 
     } else {
 
@@ -738,12 +766,6 @@ function submitCC(new_auth_token, price, payment_gateway) {
                 'checkout[client_details][javascript_enabled]': '1'
             }
         }, function(err, res, body) {
-
-            if (dev) {
-                fs.writeFile('debug.html', body, function(err) {
-                    log('The file debug.html was saved the root of the project file.');
-                });
-            }
 
             var $ = cheerio.load(body);
 
