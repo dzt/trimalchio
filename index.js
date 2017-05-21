@@ -31,61 +31,153 @@ var http = require('http');
 var fs = require('fs');
 var menu = require('node-menu');
 
-var customHeader = `
-                      888            d8b                        888          888      d8b
-                      888            Y8P                        888          888      Y8P
-                      888                                       888          888
-                      888888 888d888 888 88888b.d88b.   8888b.  888  .d8888b 88888b.  888  .d88b.
-                      888    888P"   888 888 "888 "88b     "88b 888 d88P"    888 "88b 888 d88""88b
-                      888    888     888 888  888  888 .d888888 888 888      888  888 888 888  888
-                      Y88b.  888     888 888  888  888 888  888 888 Y88b.    888  888 888 Y88..88P
-                       "Y888 888     888 888  888  888 "Y888888 888  "Y8888P 888  888 888  "Y88P"
+init();
 
-                                                github.com/dzt/trimalchio
+function init() {
+    if (fs.existsSync('./config.json')) {
+        log('Found an existing config.json, using data from file for current process.', 'warning');
+        config = require('./config.json');
+        base_url = config.base_url
+        startMenu();
+    } else {
+        prompt.get([{
+            name: 'base_url',
+            required: true,
+            description: 'Store URL (ex: "https://store.illegalcivilization.com" or provide sitemap url)'
+        }, {
+            name: 'keywords',
+            required: true,
+            description: 'Keyword(s)'
+        }, {
+            name: 'ccn',
+            required: true,
+            description: 'CC Number (with spaces)'
+        }, {
+            name: 'nameOnCard',
+            required: true,
+            description: 'Name on CC'
+        }, {
+            name: 'month',
+            type: 'integer',
+            required: true,
+            description: 'CC Exp Month (ex: 3, 6, 12)'
+        }, {
+            name: 'year',
+            type: 'integer',
+            required: true,
+            description: 'CC Exp Year (ex: 2019)'
+        }, {
+            name: 'ccv',
+            required: true,
+            description: 'CVV Number on Card (ex: 810)'
+        }, {
+            name: 'firstName',
+            required: true,
+            description: 'First Name'
+        }, {
+            name: 'lastName',
+            required: true,
+            description: 'Last Name'
+        }, {
+            name: 'address',
+            required: true,
+            description: 'Address'
+        }, {
+            name: 'city',
+            required: true,
+            description: 'City'
+        }, {
+            name: 'state',
+            required: true,
+            description: 'State (ex: MA, CA, NY)'
+        }, {
+            name: 'zipCode',
+            required: true,
+            description: 'Zip Code'
+        }, {
+            name: 'phoneNumber',
+            required: true,
+            description: 'Phone Number (no spaces or symbols)'
+        }, {
+            name: 'email',
+            required: true,
+            description: 'Email Address'
+        }, {
+            name: 'shipping_pole_timeout',
+            type: 'integer',
+            required: true,
+            description: 'Timeout Delay (ms) for polling shipping Rates (Recommended: 2500)'
+        }], function(err, result) {
+            result.show_stock = false;
+            config = result
+            base_url = config.base_url
+            fs.writeFile('config.json', JSON.stringify(result, null, 4), function(err) {
+                log('Config file generated! Starting process...');
+                log(`Looking for Keyword(s) matching "${config.keywords}"`);
+                startMenu();
+            });
+        });
+    }
+}
 
-`;
 
-menu.addItem(
-        'Basic Mode',
-        function() {
-            init();
-            menu.resetMenu();
-        })
+function startMenu() {
+
+    var customHeader = `
+                        888            d8b                        888          888      d8b
+                        888            Y8P                        888          888      Y8P
+                        888                                       888          888
+                        888888 888d888 888 88888b.d88b.   8888b.  888  .d8888b 88888b.  888  .d88b.
+                        888    888P"   888 888 "888 "88b     "88b 888 d88P"    888 "88b 888 d88""88b
+                        888    888     888 888  888  888 .d888888 888 888      888  888 888 888  888
+                        Y88b.  888     888 888  888  888 888  888 888 Y88b.    888  888 888 Y88..88P
+                         "Y888 888     888 888  888  888 "Y888888 888  "Y8888P 888  888 888  "Y88P"
+
+                                                  github.com/dzt/trimalchio
+
+  `;
+    menu.addItem(
+            'Basic Mode',
+            function() {
+                log(`Looking for Keyword(s) matching "${config.keywords}"`);
+                start();
+                menu.resetMenu();
+            })
         .addItem(
-          'Early Link Mode',
-          function() {
-              log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
-              process.exit(1);
-        })
+            'Early Link Mode',
+            function() {
+                log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
+                process.exit(1);
+            })
         .addItem(
-          'Restock Mode',
-          function() {
-            log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
-            process.exit(1);
-        })
+            'Restock Mode',
+            function() {
+                log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
+                process.exit(1);
+            })
         .addItem(
-          'Captcha Harvester',
-          function() {
-            log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
-            process.exit(1);
-        })
+            'Captcha Harvester',
+            function() {
+                log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
+                process.exit(1);
+            })
         .addItem(
-          'Scheduler',
-          function() {
-            log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
-            process.exit(1);
-        })
+            'Scheduler',
+            function() {
+                log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
+                process.exit(1);
+            })
         .addItem(
-          'Proxies',
-          function() {
-            log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
-            process.exit(1);
+            'Proxies',
+            function() {
+                log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
+                process.exit(1);
+            })
+        .customHeader(function() {
+            console.log('\x1b[36m%s\x1b[0m', customHeader);
         })
-    .customHeader(function() {
-         console.log('\x1b[36m%s\x1b[0m', customHeader);
-     })
-    .disableDefaultPrompt()
-    .start();
+        .disableDefaultPrompt()
+        .start();
 
     require("console-stamp")(console, {
         colors: {
@@ -94,6 +186,7 @@ menu.addItem(
             metadata: "green"
         }
     });
+}
 
 var base_url;
 var userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36'
@@ -125,94 +218,6 @@ prompt.start({
     noHandleSIGINT: true
 });
 
-function init() {
-if (fs.existsSync('./config.json')) {
-    log('Found an existing config.json, using data from file for current process.', 'warning');
-    config = require('./config.json');
-    base_url = config.base_url
-    start();
-    log(`Looking for Keyword(s) matching "${config.keywords}"`);
-} else {
-    prompt.get([{
-        name: 'base_url',
-        required: true,
-        description: 'Store URL (ex: "https://store.illegalcivilization.com" or provide sitemap url)'
-    }, {
-        name: 'keywords',
-        required: true,
-        description: 'Keyword(s)'
-    }, {
-        name: 'ccn',
-        required: true,
-        description: 'CC Number (with spaces)'
-    }, {
-        name: 'nameOnCard',
-        required: true,
-        description: 'Name on CC'
-    }, {
-        name: 'month',
-        type: 'integer',
-        required: true,
-        description: 'CC Exp Month (ex: 3, 6, 12)'
-    }, {
-        name: 'year',
-        type: 'integer',
-        required: true,
-        description: 'CC Exp Year (ex: 2019)'
-    }, {
-        name: 'ccv',
-        required: true,
-        description: 'CVV Number on Card (ex: 810)'
-    }, {
-        name: 'firstName',
-        required: true,
-        description: 'First Name'
-    }, {
-        name: 'lastName',
-        required: true,
-        description: 'Last Name'
-    }, {
-        name: 'address',
-        required: true,
-        description: 'Address'
-    }, {
-        name: 'city',
-        required: true,
-        description: 'City'
-    }, {
-        name: 'state',
-        required: true,
-        description: 'State (ex: MA, CA, NY)'
-    }, {
-        name: 'zipCode',
-        required: true,
-        description: 'Zip Code'
-    }, {
-        name: 'phoneNumber',
-        required: true,
-        description: 'Phone Number (no spaces or symbols)'
-    }, {
-        name: 'email',
-        required: true,
-        description: 'Email Address'
-    }, {
-        name: 'shipping_pole_timeout',
-        type: 'integer',
-        required: true,
-        description: 'Timeout Delay (ms) for polling shipping Rates (Recommended: 2500)'
-    }], function(err, result) {
-        result.show_stock = false;
-        config = result
-        base_url = config.base_url
-        fs.writeFile('config.json', JSON.stringify(result, null, 4), function(err) {
-            log('Config file generated! Starting process...');
-            log(`Looking for Keyword(s) matching "${config.keywords}"`);
-            start();
-        });
-    });
-}
-}
-
 function start() {
     findItem(config.keywords, function(err, res) {
         if (err) {
@@ -227,113 +232,115 @@ function start() {
 function findItem(kw, cb) {
 
     if (config.base_url.endsWith(".xml")) {
-      var parseString = require('xml2js').parseString;
+        var parseString = require('xml2js').parseString;
 
-      request({
-          url: config.base_url,
-          method: 'get',
-          headers: {
-              'User-Agent': userAgent
-          }
-      }, function(err, res, body) {
+        request({
+            url: config.base_url,
+            method: 'get',
+            headers: {
+                'User-Agent': userAgent
+            }
+        }, function(err, res, body) {
 
-        parseString(body, function (err, result) {
-            if (err) {
-              log('An error occured while trying to parse the sitemap provided', 'error');
-              process.exit(1);
-            }
-            log('result.length '+ result.length)
-            if (dev) {
-                fs.writeFile('debug.html', result, function(err) {
-                    log('The file debug.html was saved the root of the project file.');
-                });
-            }
+            parseString(body, function(err, result) {
+                if (err) {
+                    log('An error occured while trying to parse the sitemap provided', 'error');
+                    process.exit(1);
+                }
+                log('result.length ' + result.length)
+                if (dev) {
+                    fs.writeFile('debug.html', result, function(err) {
+                        log('The file debug.html was saved the root of the project file.');
+                    });
+                }
+            });
         });
-      });
 
     } else {
 
+        request({
+            url: `${base_url}/products.json`,
+            method: 'get',
+            headers: {
+                'User-Agent': userAgent
+            }
+        }, function(err, res, body) {
+            if (err) {
+                log(err)
+                return cb(err, null);
+            } else {
+                try {
+                    var products = JSON.parse(body);
+                } catch (e) {
+                    log(`This site is incompatible, sorry for the inconvenience.`);
+                    process.exit(1);
+                }
+                var foundItems = [];
+                for (var i = 0; i < products.products.length; i++) {
+                    var name = products.products[i].title;
+                    if (name.toLowerCase().indexOf(config.keywords.toLowerCase()) > -1) {
+                        foundItems.push(products.products[i]);
+                    }
+                }
+
+                if (foundItems.length > 0) {
+                    if (foundItems.length === 1) {
+                        log(`Item Found! - "${foundItems[0].title}"`);
+                        match = foundItems[0];
+                        return cb(null, foundItems[0]);
+                    } else {
+                        log(`We found more than 1 item matching with the keyword(s) "${config.keywords}" please select the item.\n`, 'warning');
+                        for (var i = 0; i < foundItems.length; i++) {
+                            log(`Product Choice #${i + 1}: "${foundItems[i].title}"`);
+                        }
+
+                        prompt.get([{
+                            name: 'productSelect',
+                            required: true,
+                            description: 'Select a Product # (ex: "2")'
+                        }], function(err, result) {
+                            var choice = parseInt(result.productSelect);
+                            match = foundItems[choice - 1];
+                            log(`You selected - "${match.title}`);
+                            return cb(null, match);
+                        });
+
+                    }
+                } else {
+                    return cb('Match not found yet...', null);
+                }
+
+            }
+        });
+    }
+}
+
+var findVariantStock = function(handle, id, cb) {
     request({
-        url: `${base_url}/products.json`,
+        url: `${base_url}/products/` + handle + '.json',
+        followAllRedirects: true,
         method: 'get',
         headers: {
             'User-Agent': userAgent
         }
     }, function(err, res, body) {
-        if (err) {
-            log(err)
-            return cb(err, null);
-        } else {
-             try {
-               var products = JSON.parse(body);
-             } catch (e) {
-               log(`This site is incompatible, sorry for the inconvenience.`);
-               process.exit(1);
-             }
-            var foundItems = [];
-            for (var i = 0; i < products.products.length; i++) {
-                var name = products.products[i].title;
-                if (name.toLowerCase().indexOf(config.keywords.toLowerCase()) > -1) {
-                    foundItems.push(products.products[i]);
-                }
-            }
 
-            if (foundItems.length > 0) {
-                if (foundItems.length === 1) {
-                    log(`Item Found! - "${foundItems[0].title}"`);
-                    match = foundItems[0];
-                    return cb(null, foundItems[0]);
-                } else {
-                    log(`We found more than 1 item matching with the keyword(s) "${config.keywords}" please select the item.\n`, 'warning');
-                    for (var i = 0; i < foundItems.length; i++) {
-                        log(`Product Choice #${i + 1}: "${foundItems[i].title}"`);
-                    }
-
-                    prompt.get([{
-                        name: 'productSelect',
-                        required: true,
-                        description: 'Select a Product # (ex: "2")'
-                    }], function(err, result) {
-                        var choice = parseInt(result.productSelect);
-                        match = foundItems[choice - 1];
-                        log(`You selected - "${match.title}`);
-                        return cb(null, match);
-                    });
-
-                }
-            } else {
-                return cb('Match not found yet...', null);
-            }
-
+        try {
+            var variants = JSON.parse(body).product.variants;
+        } catch (e) {
+            return cb(true, null);
         }
+
+        var res = _.findWhere(variants, {
+            id: id
+        });
+        if (res.inventory_quantity) {
+            return cb(null, res.inventory_quantity);
+        } else {
+            return cb(null, 'Unavailable');
+        }
+
     });
-  }
-}
-
-var findVariantStock = function(handle, id, cb) {
-  request({
-      url: `${base_url}/products/` + handle + '.json',
-      followAllRedirects: true,
-      method: 'get',
-      headers: {
-          'User-Agent': userAgent
-      }
-  }, function(err, res, body) {
-
-    try {
-      var variants = JSON.parse(body).product.variants;
-    } catch(e) {
-      return cb(true, null);
-    }
-
-    var res = _.findWhere(variants, {id: id});
-    if (res.inventory_quantity) {
-      return cb(null, res.inventory_quantity);
-    } else {
-      return cb(null, 'Unavailable');
-    }
-
-  });
 };
 
 function selectStyle() {
@@ -344,18 +351,18 @@ function selectStyle() {
         styleID = match.variants[0].id;
 
         if (config.show_stock == false) {
-          stock = 'Unavailable'
+            stock = 'Unavailable'
         } else {
-          findVariantStock(match.handle, match.variants[0].id, function(err, res) {
-            if (err) {
-              singleItemStock = 'Unavailable'
-              log(`Style Selected: "${match.variants[0].option1}" (${styleID}) | Stock: Unavailable`);
-              pay();
-            } else {
-              log(`Style Selected: "${match.variants[0].option1}" (${styleID}) | Stock: ${res}`);
-              pay();
-            }
-          });
+            findVariantStock(match.handle, match.variants[0].id, function(err, res) {
+                if (err) {
+                    singleItemStock = 'Unavailable'
+                    log(`Style Selected: "${match.variants[0].option1}" (${styleID}) | Stock: Unavailable`);
+                    pay();
+                } else {
+                    log(`Style Selected: "${match.variants[0].option1}" (${styleID}) | Stock: ${res}`);
+                    pay();
+                }
+            });
         }
 
     } else {
@@ -366,19 +373,19 @@ function selectStyle() {
 
             var stock;
             if (config.show_stock == false) {
-              stock = 'Unavailable'
+                stock = 'Unavailable'
             } else {
-              findVariantStock(match.handle, match.variants[i].id, function(err, res) {
-                if (err) {
-                  stock = 'Unavailable'
-                } else {
-                  stock = res;
-                }
-              });
+                findVariantStock(match.handle, match.variants[i].id, function(err, res) {
+                    if (err) {
+                        stock = 'Unavailable'
+                    } else {
+                        stock = res;
+                    }
+                });
             }
 
 
-            if (option2  == null) {
+            if (option2 == null) {
                 log(`Style/Size Choice #${i + 1}: "${styleName}" | Stock: ${stock})`);
             } else {
                 log(`Style/Size Choice #${i + 1}: "${styleName}" - ${option2} | Stock: ${stock}`);
@@ -833,13 +840,13 @@ function submitCC(new_auth_token, price, payment_gateway) {
                 log('Payment is processing, go check your email for a confirmation.');
                 return process.exit(1);
             } else if (res.request.href.indexOf('paypal.com') > -1) {
-              var open = require('open');
-              log('This website only supports PayPal and is currently incompatible with Trimalchio, sorry for the inconvenience. A browser session with the PayPal checkout will open momentarily.');
-              open(res.request.href);
-              setTimeout(function(){
-                return process.exit(1);
-              }, 3000);
-            }else if ($('div.notice--warning p.notice__text')) {
+                var open = require('open');
+                log('This website only supports PayPal and is currently incompatible with Trimalchio, sorry for the inconvenience. A browser session with the PayPal checkout will open momentarily.');
+                open(res.request.href);
+                setTimeout(function() {
+                    return process.exit(1);
+                }, 3000);
+            } else if ($('div.notice--warning p.notice__text')) {
                 log(`${$('div.notice--warning p.notice__text').eq(0).text()}`, 'error');
                 return process.exit(1);
             } else {
