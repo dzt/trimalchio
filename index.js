@@ -1,11 +1,3 @@
-require("console-stamp")(console, {
-    colors: {
-        stamp: "yellow",
-        label: "cyan",
-        metadata: "green"
-    }
-});
-
 function log(msg, type) {
     switch (type) {
         case "warning":
@@ -22,7 +14,7 @@ function log(msg, type) {
     }
 }
 
-var dev = true;
+var dev = false;
 var prompt = require('prompt');
 var j = require('request').jar();
 var states = require('./states.json');
@@ -37,8 +29,72 @@ var phoneFormatter = require('phone-formatter');
 //var wait = require('nightmare-wait-for-url');
 var http = require('http');
 var fs = require('fs');
+var menu = require('node-menu');
 
-//var base_url = 'https://www.crapeyewear.com';
+var customHeader = `
+                      888            d8b                        888          888      d8b
+                      888            Y8P                        888          888      Y8P
+                      888                                       888          888
+                      888888 888d888 888 88888b.d88b.   8888b.  888  .d8888b 88888b.  888  .d88b.
+                      888    888P"   888 888 "888 "88b     "88b 888 d88P"    888 "88b 888 d88""88b
+                      888    888     888 888  888  888 .d888888 888 888      888  888 888 888  888
+                      Y88b.  888     888 888  888  888 888  888 888 Y88b.    888  888 888 Y88..88P
+                       "Y888 888     888 888  888  888 "Y888888 888  "Y8888P 888  888 888  "Y88P"
+
+                                                github.com/dzt/trimalchio
+
+`;
+
+menu.addItem(
+        'Basic Mode',
+        function() {
+            init();
+            menu.resetMenu();
+        })
+        .addItem(
+          'Early Link Mode',
+          function() {
+              log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
+              process.exit(1);
+        })
+        .addItem(
+          'Restock Mode',
+          function() {
+            log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
+            process.exit(1);
+        })
+        .addItem(
+          'Captcha Harvester',
+          function() {
+            log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
+            process.exit(1);
+        })
+        .addItem(
+          'Scheduler',
+          function() {
+            log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
+            process.exit(1);
+        })
+        .addItem(
+          'Proxies',
+          function() {
+            log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
+            process.exit(1);
+        })
+    .customHeader(function() {
+         console.log('\x1b[36m%s\x1b[0m', customHeader);
+     })
+    .disableDefaultPrompt()
+    .start();
+
+    require("console-stamp")(console, {
+        colors: {
+            stamp: "yellow",
+            label: "cyan",
+            metadata: "green"
+        }
+    });
+
 var base_url;
 var userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36'
 
@@ -69,6 +125,7 @@ prompt.start({
     noHandleSIGINT: true
 });
 
+function init() {
 if (fs.existsSync('./config.json')) {
     log('Found an existing config.json, using data from file for current process.', 'warning');
     config = require('./config.json');
@@ -153,6 +210,7 @@ if (fs.existsSync('./config.json')) {
             start();
         });
     });
+}
 }
 
 function start() {
@@ -768,15 +826,21 @@ function submitCC(new_auth_token, price, payment_gateway) {
         }, function(err, res, body) {
 
             var $ = cheerio.load(body);
-
             if ($('input[name="step"]').val() == 'processing') {
-                log('Payment is processing, go check your email for a confirmation.')
+                log('Payment is processing, go check your email for a confirmation.');
+                return process.exit(1);
             } else if ($('title').text().indexOf('Processing') > -1) {
-                log('Payment is processing, go check your email for a confirmation.')
-            } else if ($('div.notice--warning p.notice__text')) {
+                log('Payment is processing, go check your email for a confirmation.');
+                return process.exit(1);
+            } else if (res.request.href.indexOf('paypal.com') > -1) {
+              log('This website only supports PayPal and is currently incompatible, sorry for the inconvenience.');
+              return process.exit(1);
+            }else if ($('div.notice--warning p.notice__text')) {
                 log(`${$('div.notice--warning p.notice__text').eq(0).text()}`, 'error');
+                return process.exit(1);
             } else {
-                log(`An unknown error has occured please try again.`)
+                log(`An unknown error has occured please try again.`, 'error');
+                return process.exit(1);
             }
 
         });

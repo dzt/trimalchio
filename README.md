@@ -38,7 +38,7 @@ Launch Flags (not added yet):
 - [ ] Queue support
 - [ ] Negative Keywords
 - [ ] Multiple Tasks
-- [ ] Custom Menu
+- [x] Custom Menu
 - [ ] Slack Integration
 
 ### Who
