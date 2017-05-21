@@ -833,8 +833,12 @@ function submitCC(new_auth_token, price, payment_gateway) {
                 log('Payment is processing, go check your email for a confirmation.');
                 return process.exit(1);
             } else if (res.request.href.indexOf('paypal.com') > -1) {
-              log('This website only supports PayPal and is currently incompatible, sorry for the inconvenience.');
-              return process.exit(1);
+              var open = require('open');
+              log('This website only supports PayPal and is currently incompatible with Trimalchio, sorry for the inconvenience. A browser session with the PayPal checkout will open momentarily.');
+              open(res.request.href);
+              setTimeout(function(){
+                return process.exit(1);
+              }, 3000);
             }else if ($('div.notice--warning p.notice__text')) {
                 log(`${$('div.notice--warning p.notice__text').eq(0).text()}`, 'error');
                 return process.exit(1);

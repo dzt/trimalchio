@@ -1,6 +1,8 @@
 # trimalchio
 Easy to use Shopify Bot, works for a majority of Shopify websites but still could use some work. This project is still under active development so please do not spam my email <3.
 
+** Note: If you know that a site only supports PayPal as a checkout method, be sure to have OneTouch enabled on your PayPal account to enhance the speed. **
+
 ![term](http://i.imgur.com/HHyh0KG.png)
 
 ### Installation
