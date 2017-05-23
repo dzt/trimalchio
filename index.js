@@ -351,7 +351,7 @@ function selectStyle() {
         styleID = match.variants[0].id;
 
         if (config.show_stock == false) {
-            stock = 'Unavailable'
+            stock = 'Disabled'
         } else {
             findVariantStock(match.handle, match.variants[0].id, function(err, res) {
                 if (err) {
@@ -373,7 +373,7 @@ function selectStyle() {
 
             var stock;
             if (config.show_stock == false) {
-                stock = 'Unavailable'
+                stock = 'Disabled'
             } else {
                 findVariantStock(match.handle, match.variants[i].id, function(err, res) {
                     if (err) {
@@ -386,9 +386,9 @@ function selectStyle() {
 
 
             if (option2 == null) {
-                log(`Style/Size Choice #${i + 1}: "${styleName}" | Stock: ${stock})`);
+                log(`Style/Size Choice #${i + 1}: "${styleName}" | Stock: (${stock})`);
             } else {
-                log(`Style/Size Choice #${i + 1}: "${styleName}" - ${option2} | Stock: ${stock}`);
+                log(`Style/Size Choice #${i + 1}: "${styleName}" - ${option2} | Stock: (${stock}`);
             }
         }
 
