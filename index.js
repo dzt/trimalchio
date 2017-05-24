@@ -630,7 +630,8 @@ function ship(auth_token) {
         if (shipping_pole_url === undefined) {
             var firstShippingOption = $('div.content-box__row .radio-wrapper').attr('data-shipping-method');
             if (firstShippingOption == undefined) {
-                log(`${base_url} is Incompatible, sorry for the inconvenience`);
+                log(`${base_url} is Incompatible, sorry for the inconvenience. A browser checkout session will be opened momentarily.`);
+                open(url);
                 process.exit(1);
             } else {
                 return submitShipping({
