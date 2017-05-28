@@ -17,6 +17,7 @@
     "phone-formatter": "0.0.2",
     "prompt": "^1.0.0",
     "request": "^2.81.0",
+    "slackbots": "^1.0.2",
     "underscore": "^1.8.3",
     "xml2js": "^0.4.17"
   }

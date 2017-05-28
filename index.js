@@ -108,9 +108,23 @@ function init() {
             required: true,
             description: 'Timeout Delay (ms) for polling shipping Rates (Recommended: 2500)'
         }], function(err, result) {
+
+            var slack = {
+              active: false,
+              token: "token goes here",
+              channel: "general",
+              settings: {
+                username: "Trimalchio",
+                icon_url: "http://i.imgur.com/06ubORD.jpg"
+              }
+            }
+
+            result.paypal = false;
+            result.slack = slack;
             result.show_stock = false;
             config = result
             base_url = config.base_url
+
             fs.writeFile('config.json', JSON.stringify(result, null, 4), function(err) {
                 log('Config file generated! Starting process...');
                 log(`Looking for Keyword(s) matching "${config.keywords}"`);
