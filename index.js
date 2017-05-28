@@ -217,6 +217,8 @@ function start() {
     });
 }
 
+var userHasBeenNotifiedEmpty = false;
+
 function findItem(kw, cb) {
 
     if (config.base_url.endsWith(".xml")) {
@@ -264,6 +266,17 @@ function findItem(kw, cb) {
                     process.exit(1);
                 }
                 var foundItems = [];
+
+                if (products.products.length === 0) {
+                  if (userHasBeenNotifiedEmpty) {
+                    return cb(true, null);
+                  } else {
+                    userHasBeenNotifiedEmpty = true;
+                    log('No item\'s available right now still looking...', 'error');
+                    return cb(true, null);
+                  }
+                }
+
                 for (var i = 0; i < products.products.length; i++) {
                     var name = products.products[i].title;
                     if (name.toLowerCase().indexOf(config.keywords.toLowerCase()) > -1) {
