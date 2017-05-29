@@ -31,6 +31,9 @@ var http = require('http');
 var fs = require('fs');
 var menu = require('node-menu');
 
+var Bot,
+    slackBot;
+
 init();
 
 function init() {
@@ -110,13 +113,13 @@ function init() {
         }], function(err, result) {
 
             var slack = {
-              active: false,
-              token: "token goes here",
-              channel: "general",
-              settings: {
-                username: "Trimalchio",
-                icon_url: "http://i.imgur.com/06ubORD.jpg"
-              }
+                active: false,
+                token: "token goes here",
+                channel: "general",
+                settings: {
+                    username: "Trimalchio",
+                    icon_url: "http://i.imgur.com/06ubORD.jpg"
+                }
             }
 
             result.paypal = false;
@@ -134,7 +137,6 @@ function init() {
     }
 }
 
-
 function startMenu() {
 
     var customHeader = `
@@ -150,48 +152,43 @@ function startMenu() {
                                                   github.com/dzt/trimalchio
 
   `;
-    menu.addItem(
-            'Basic Mode',
-            function() {
-                log(`Looking for Keyword(s) matching "${config.keywords}"`);
-                start();
-                menu.resetMenu();
+    menu.addItem('Basic Mode', function() {
+        log(`Looking for Keyword(s) matching "${config.keywords}"`);
+        if (config.slack.active) {
+            Bot = require('slackbots');
+            slackBot = new Bot({
+                name: config.slack.settings.username,
+                token: config.slack.token
+            });
+            log('Slack Bot is currently enabled.', 'info');
+            slackBot.on('start', function() {
+                slackBot.postMessageToChannel(config.slack.channel, 'Trimalchio is currently active (▰˘◡˘▰)', config.slack.settings);
             })
-        .addItem(
-            'Early Link Mode',
-            function() {
-                log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
-                process.exit(1);
+            slackBot.on('error', function() {
+                log('error', 'An error occurred while connecting to Slack, please try again.')
+                return process.exit()
             })
-        .addItem(
-            'Restock Mode',
-            function() {
-                log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
-                process.exit(1);
-            })
-        .addItem(
-            'Captcha Harvester',
-            function() {
-                log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
-                process.exit(1);
-            })
-        .addItem(
-            'Scheduler',
-            function() {
-                log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
-                process.exit(1);
-            })
-        .addItem(
-            'Proxies',
-            function() {
-                log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
-                process.exit(1);
-            })
-        .customHeader(function() {
-            console.log('\x1b[36m%s\x1b[0m', customHeader);
-        })
-        .disableDefaultPrompt()
-        .start();
+        }
+        start();
+        menu.resetMenu();
+    }).addItem('Early Link Mode', function() {
+        log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
+        process.exit(1);
+    }).addItem('Restock Mode', function() {
+        log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
+        process.exit(1);
+    }).addItem('Captcha Harvester', function() {
+        log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
+        process.exit(1);
+    }).addItem('Scheduler', function() {
+        log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
+        process.exit(1);
+    }).addItem('Proxies', function() {
+        log('Feature not yet available at the moment. Sorry for the inconvenience.', 'error');
+        process.exit(1);
+    }).customHeader(function() {
+        console.log('\x1b[36m%s\x1b[0m', customHeader);
+    }).disableDefaultPrompt().start();
 
     require("console-stamp")(console, {
         colors: {
@@ -207,6 +204,7 @@ var userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537
 
 prompt.message = 'Input';
 var match,
+    price,
     styleID,
     config,
     storeID,
@@ -273,22 +271,29 @@ function findItem(kw, cb) {
                 log(err)
                 return cb(err, null);
             } else {
+
                 try {
                     var products = JSON.parse(body);
                 } catch (e) {
-                    log(`This site is incompatible, sorry for the inconvenience.`);
-                    process.exit(1);
+                    if (res.statusCode == 430) {
+                        log(`Shopify has timed out your connection temporally due to excessive traffic coming from your host.`, 'error');
+                        process.exit(1);
+                    } else {
+                        log(`This site is incompatible, sorry for the inconvenience.`, 'error');
+                        process.exit(1);
+                    }
                 }
+
                 var foundItems = [];
 
                 if (products.products.length === 0) {
-                  if (userHasBeenNotifiedEmpty) {
-                    return cb(true, null);
-                  } else {
-                    userHasBeenNotifiedEmpty = true;
-                    log('No item\'s available right now still looking...', 'error');
-                    return cb(true, null);
-                  }
+                    if (userHasBeenNotifiedEmpty) {
+                        return cb(true, null);
+                    } else {
+                        userHasBeenNotifiedEmpty = true;
+                        log('No item\'s available right now still looking...', 'error');
+                        return cb(true, null);
+                    }
                 }
 
                 for (var i = 0; i < products.products.length; i++) {
@@ -304,6 +309,7 @@ function findItem(kw, cb) {
                         match = foundItems[0];
                         return cb(null, foundItems[0]);
                     } else {
+
                         log(`We found more than 1 item matching with the keyword(s) "${config.keywords}" please select the item.\n`, 'warning');
                         for (var i = 0; i < foundItems.length; i++) {
                             log(`Product Choice #${i + 1}: "${foundItems[i].title}"`);
@@ -399,12 +405,42 @@ function selectStyle() {
                 });
             }
 
-
             if (option2 == null) {
                 log(`Style/Size Choice #${i + 1}: "${styleName}" | Stock: (${stock})`);
             } else {
                 log(`Style/Size Choice #${i + 1}: "${styleName}" - ${option2} | Stock: (${stock}`);
             }
+        }
+
+        if (config.slack.active) {
+            var styleoptions = [];
+            for (var i = 0; i < match.variants.length; i++) {
+                styleoptions.push({
+                    "name": match.variants[i].option1,
+                    "text": match.variants[i].option1,
+                    "type": "button",
+                    "value": match.variants[i].id
+                })
+            }
+
+            var params = {
+                "text": "Item Found! Select a Style...",
+                "attachments": [{
+                    "title": match.title,
+                    "author_name": "Trimalchio",
+                    "image_url": match.images[0].src,
+                    "author_icon": config.slack.settings.icon_url
+                }, {
+                    "text": "Select a Style...",
+                    "fallback": "Unable to choose a style",
+                    "callback_id": "style",
+                    "color": "#3AA3E3",
+                    "attachment_type": "default",
+                    "actions": styleoptions
+                }]
+            }
+
+            slackBot.postMessage(config.slack.channel, null, params);
         }
 
         prompt.get([{
@@ -485,6 +521,10 @@ function pay() {
                 var auth_token = $('form.edit_checkout input[name=authenticity_token]').attr('value');
                 log(`Store ID: ${storeID}`)
                 log(`Checkout ID: ${checkoutID}`)
+
+                price = $('.total-recap__final-price').text();
+                slackNotification('#36a64f', 'Added to Cart');
+
                 return input(auth_token);
             });
         });
@@ -666,26 +706,26 @@ function ship(auth_token) {
 function submitShipping(res) {
 
     /* RIP Nightmarejs lol
-      log('Transfering Cookies over to headless session...');
-      var cookies = JSON.stringify(j.getCookies('http://www.crapeyewear.com'));
-      var parsedCookies = JSON.parse(cookies);
-      log(`Number of Cookies discovered: ${parsedCookies.length}`)
-      for (var i = 0; i < parsedCookies.length; i++) {
-          if (parsedCookies[i].value === undefined) {
-              var val = ''
-          } else {
-              var val = parsedCookies[i].value;
-          }
+          log('Transfering Cookies over to headless session...');
+          var cookies = JSON.stringify(j.getCookies('http://www.crapeyewear.com'));
+          var parsedCookies = JSON.parse(cookies);
+          log(`Number of Cookies discovered: ${parsedCookies.length}`)
+          for (var i = 0; i < parsedCookies.length; i++) {
+              if (parsedCookies[i].value === undefined) {
+                  var val = ''
+              } else {
+                  var val = parsedCookies[i].value;
+              }
 
-          if (i != 7) {
-              nightmareCookies.push({
-                  "url": 'http://www.crapeyewear.com',
-                  "name": parsedCookies[i].key,
-                  "value": val
-              });
+              if (i != 7) {
+                  nightmareCookies.push({
+                      "url": 'http://www.crapeyewear.com',
+                      "name": parsedCookies[i].key,
+                      "value": val
+                  });
+              }
           }
-      }
-      */
+          */
 
     // WTF IS THIS RETURNING A 202 (UPDATE: FIXED)
 
@@ -771,12 +811,9 @@ function submitShipping(res) {
         }, function(err, res, body) {
 
             var $ = cheerio.load(body);
-
-            var price = $('input[name="checkout[total_price]"]').attr('value');
             var payment_gateway = $('input[name="checkout[payment_gateway]"]').attr('value');
             var new_auth_token = $('form[data-payment-form=""] input[name="authenticity_token"]').attr('value');
 
-            log(`Final Auth Token: ${new_auth_token}`);
             log(`Price: ${price}`);
             log(`Payment Gateway ID: ${payment_gateway}`);
 
@@ -851,11 +888,18 @@ function submitCC(new_auth_token, price, payment_gateway) {
             var $ = cheerio.load(body);
             if ($('input[name="step"]').val() == 'processing') {
                 log('Payment is processing, go check your email for a confirmation.');
-                return process.exit(1);
+                slackNotification('#36a64f', 'Payment is processing, go check your email for a confirmation.');
+                setTimeout(function() {
+                    return process.exit(1);
+                }, 4500);
             } else if ($('title').text().indexOf('Processing') > -1) {
                 log('Payment is processing, go check your email for a confirmation.');
-                return process.exit(1);
+                slackNotification('#36a64f', 'Payment is processing, go check your email for a confirmation.');
+                setTimeout(function() {
+                    return process.exit(1);
+                }, 4500);
             } else if (res.request.href.indexOf('paypal.com') > -1) {
+                slackNotification('#4FC3F7', `This website only supports PayPal and is currently incompatible with Trimalchio, sorry for the inconvenience. <${res.request.href}|Click Here>`);
                 var open = require('open');
                 log('This website only supports PayPal and is currently incompatible with Trimalchio, sorry for the inconvenience. A browser session with the PayPal checkout will open momentarily.');
                 open(res.request.href);
@@ -863,13 +907,66 @@ function submitCC(new_auth_token, price, payment_gateway) {
                     return process.exit(1);
                 }, 3000);
             } else if ($('div.notice--warning p.notice__text')) {
-                log(`${$('div.notice--warning p.notice__text').eq(0).text()}`, 'error');
-                return process.exit(1);
+
+                if ($('div.notice--warning p.notice__text') == '') {
+                    slackNotification('#ef5350', 'An unknown error has occured.');
+                    log(`An unknown error has occured please try again.`, 'error');
+                    setTimeout(function() {
+                        return process.exit(1);
+                    }, 4500);
+                } else {
+                    slackNotification('#ef5350', `${$('div.notice--warning p.notice__text').eq(0).text()}`);
+                    log(`${$('div.notice--warning p.notice__text').eq(0).text()}`, 'error');
+                    setTimeout(function() {
+                        return process.exit(1);
+                    }, 4500);
+                }
+
             } else {
+                slackNotification('#ef5350', 'An unknown error has occured.');
                 log(`An unknown error has occured please try again.`, 'error');
-                return process.exit(1);
+                setTimeout(function() {
+                    return process.exit(1);
+                }, 4500);
             }
 
         });
     });
+}
+
+function slackNotification(color, type) {
+    if (config.slack.active) {
+        var params = {
+            username: config.slack.settings.username,
+            icon_url: config.slack.settings.icon_url,
+            attachments: [{
+                "thumb_url": match.images[0].src,
+                "fallback": match.title + ': ' + type,
+                "title": match.title,
+                "title_link": config.base_url + '/' + match.handle,
+                "color": color,
+                "fields": [{
+                    "title": "Notification Message",
+                    "value": type,
+                    "short": "false"
+                }, {
+                    "title": "Checkout URL",
+                    "value": `<${url}|Click Here>`,
+                    "short": "false"
+                }, {
+                    "title": "Price",
+                    "value": price,
+                    "short": "false"
+                }, {
+                    "title": "Keyword(s)",
+                    "value": config.keywords,
+                    "short": "false"
+                }],
+                "footer": "Trimalchio",
+                "ts": Math.floor(Date.now() / 1000),
+                "footer_icon": "http://i.imgur.com/06ubORD.jpg"
+            }]
+        }
+        slackBot.postMessage(config.slack.channel, null, params);
+    }
 }
