@@ -529,7 +529,7 @@ function pay() {
                 log(`Store ID: ${storeID}`)
                 log(`Checkout ID: ${checkoutID}`)
 
-                price = $('.total-recap__final-price').text();
+                price = $('#checkout_total_price').text();
                 slackNotification('#36a64f', 'Added to Cart');
 
                 return input(auth_token);
@@ -892,6 +892,11 @@ function submitCC(new_auth_token, price, payment_gateway) {
             }
         }, function(err, res, body) {
 
+          if (dev) {
+              fs.writeFile('debug.html', body, function(err) {
+                  log('The file debug.html was saved the root of the project file.');
+              });
+          }
             var $ = cheerio.load(body);
             if ($('input[name="step"]').val() == 'processing') {
                 log('Payment is processing, go check your email for a confirmation.');
