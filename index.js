@@ -112,6 +112,7 @@ function init() {
             description: 'Timeout Delay (ms) for polling shipping Rates (Recommended: 2500)'
         }], function(err, result) {
 
+
             var slack = {
                 active: false,
                 token: "token goes here",
@@ -121,7 +122,8 @@ function init() {
                     icon_url: "http://i.imgur.com/06ubORD.jpg"
                 }
             }
-
+            const ogKwValue = result.keywords;
+            result.keywords = [ogKwValue];
             result.paypal = false;
             result.slack = slack;
             result.show_stock = false;
@@ -130,7 +132,7 @@ function init() {
 
             fs.writeFile('config.json', JSON.stringify(result, null, 4), function(err) {
                 log('Config file generated! Starting process...');
-                log(`Looking for Keyword(s) matching "${config.keywords}"`);
+                log(`Seeking for Keyword(s)...`);
                 startMenu();
             });
         });
@@ -232,7 +234,6 @@ function start() {
 var userHasBeenNotifiedEmpty = false;
 
 function findItem(kw, cb) {
-
     if (config.base_url.endsWith(".xml")) {
         var parseString = require('xml2js').parseString;
 
@@ -259,7 +260,7 @@ function findItem(kw, cb) {
         });
 
     } else {
-
+        log('non xml shit')
         request({
             url: `${base_url}/products.json`,
             method: 'get',
@@ -296,11 +297,15 @@ function findItem(kw, cb) {
                     }
                 }
 
-                for (var i = 0; i < products.products.length; i++) {
-                    var name = products.products[i].title;
-                    if (name.toLowerCase().indexOf(config.keywords.toLowerCase()) > -1) {
-                        foundItems.push(products.products[i]);
-                    }
+
+                for (var i = 0; i < kw.length; i++) {
+                  log(`Keyword: ${kw[i].toLowerCase()}`)
+                  for (var x = 0; x < products.products.length; x++) {
+                      var name = products.products[x].title;
+                      if (name.toLowerCase().indexOf(kw[i].toLowerCase()) > -1) {
+                          foundItems.push(products.products[x]);
+                      }
+                  }
                 }
 
                 if (foundItems.length > 0) {
@@ -310,7 +315,7 @@ function findItem(kw, cb) {
                         return cb(null, foundItems[0]);
                     } else {
 
-                        log(`We found more than 1 item matching with the keyword(s) "${config.keywords}" please select the item.\n`, 'warning');
+                        log(`We found more than 1 item matching with the keyword(s) please select the item.\n`, 'warning');
                         for (var i = 0; i < foundItems.length; i++) {
                             log(`Product Choice #${i + 1}: "${foundItems[i].title}"`);
                         }
@@ -425,6 +430,7 @@ function selectStyle() {
 
             var params = {
                 "text": "Item Found! Select a Style...",
+                "callback_id": "stylePick",
                 "attachments": [{
                     "title": match.title,
                     "author_name": "Trimalchio",
@@ -439,8 +445,9 @@ function selectStyle() {
                     "actions": styleoptions
                 }]
             }
-
             slackBot.postMessage(config.slack.channel, null, params);
+
+
         }
 
         prompt.get([{
