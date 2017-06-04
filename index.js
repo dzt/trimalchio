@@ -51,7 +51,15 @@ function init() {
             name: 'keywords',
             required: true,
             description: 'Keyword(s)'
-        }, {
+        },{
+            name: 'sizeStyle1',
+            required: false,
+            description: 'Usually is the size of the item but in some cases it could be the style. (Optional)'
+        },{
+            name: 'sizeStyle2',
+            required: false,
+            description: 'Usually is left blank, but if not it is usually the style of the item. (Optional)'
+        },{
             name: 'ccn',
             required: true,
             description: 'CC Number (with spaces)'
@@ -123,6 +131,21 @@ function init() {
                 }
             }
             const ogKwValue = result.keywords;
+
+            if (result.sizeStyle1 == "") {
+              const ogSizeStyle1 = null;
+            } else {
+               const ogSizeStyle1 = [result.sizeStyle1]
+            }
+
+            if (result.sizeStyle2 == "") {
+              const ogSizeStyle2 = null;
+            } else {
+               const ogSizeStyle2 = [result.sizeStyle2]
+            }
+
+            result.sizeStyle1 = ogSizeStyle1
+            result.sizeStyle2 = ogSizeStyle2;
             result.keywords = [ogKwValue];
             result.paypal = false;
             result.slack = slack;
@@ -299,7 +322,6 @@ function findItem(kw, cb) {
 
 
                 for (var i = 0; i < kw.length; i++) {
-                  log(`Keyword: ${kw[i].toLowerCase()}`)
                   for (var x = 0; x < products.products.length; x++) {
                       var name = products.products[x].title;
                       if (name.toLowerCase().indexOf(kw[i].toLowerCase()) > -1) {
