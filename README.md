@@ -31,11 +31,11 @@ Launch Flags (not added yet):
 
 **When you are prompted to set up everything, a `config.json` file will be generated with all all your configurations allowing you to simply edit the values.**
 
-- [ ] Proxy Support
+- [x] Proxy Support
 - [x] General Shopify Support
 - [ ] Time Scheduler
 - [ ] Sitemap Support
-- [ ] Better Error Handling
+- [x] Better Error Handling
 - [x] Show Stock Count
 - [ ] Queue support
 - [ ] Negative Keywords
