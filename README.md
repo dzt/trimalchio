@@ -44,7 +44,7 @@ Launch Flags (not added yet):
 - [ ] Slack Integration
 - [ ] Preset Size and Styling Configurations (adding multiple at once)
 
-### Prxoies?
+### Proxies?
 Of course Old Sport! Inside the `proxies.txt` file you can simply add numerous proxies with ease by just adding them in the format provided in the example below. Big thanks to [@cameronb23](https://github.com/cameronb23) for adding this feature.
 
 ```
