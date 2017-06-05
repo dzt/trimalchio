@@ -34,6 +34,29 @@ var menu = require('node-menu');
 var Bot,
     slackBot;
 
+
+// INIT PROXIES - NEED TO LOAD PROXIES
+var proxies = [];
+var reader = require('readline').createInterface({ input: fs.createReadStream('proxies.txt') });
+
+reader.on('line', (line) => {
+  proxies.push(formatProxy(line));
+});
+
+function formatProxy(str) {
+  // TODO: format is ip:port:user:pass
+  let data = str.split(':');
+
+  if(data.length === 2) {
+    return "http://" + data[0] + ":" + data[1];
+  } else if(data.length === 4) {
+    return "http://" + data[2] + ":" + data[3] + "@" + data[0] + ":" + data[1];
+  } else {
+    console.log("Unable to parse proxy");
+    return null;
+  }
+}
+
 init();
 
 function init() {
@@ -243,10 +266,18 @@ prompt.start({
     noHandleSIGINT: true
 });
 
+var index = 0;
+
 function start() {
-    findItem(config.keywords, function(err, res) {
+    if(index >= proxies.length) {
+      index = 0;
+    }
+
+    findItem(config.keywords, proxies[index], function(err, res) {
         if (err) {
-            return start();
+            setTimeout(() => {
+              return start();
+            }, 10000); // delay
         } else {
             match = res;
             selectStyle();
@@ -257,6 +288,7 @@ function start() {
 var userHasBeenNotifiedEmpty = false;
 
 function findItem(kw, cb) {
+
     if (config.base_url.endsWith(".xml")) {
         var parseString = require('xml2js').parseString;
 
@@ -265,7 +297,8 @@ function findItem(kw, cb) {
             method: 'get',
             headers: {
                 'User-Agent': userAgent
-            }
+            },
+            proxy: proxy
         }, function(err, res, body) {
 
             parseString(body, function(err, result) {
@@ -289,7 +322,8 @@ function findItem(kw, cb) {
             method: 'get',
             headers: {
                 'User-Agent': userAgent
-            }
+            },
+            proxy: proxy
         }, function(err, res, body) {
             if (err) {
                 log(err)
@@ -337,7 +371,9 @@ function findItem(kw, cb) {
                         return cb(null, foundItems[0]);
                     } else {
 
+
                         log(`We found more than 1 item matching with the keyword(s) please select the item.\n`, 'warning');
+                      
                         for (var i = 0; i < foundItems.length; i++) {
                             log(`Product Choice #${i + 1}: "${foundItems[i].title}"`);
                         }
@@ -468,8 +504,6 @@ function selectStyle() {
                 }]
             }
             slackBot.postMessage(config.slack.channel, null, params);
-
-
         }
 
         prompt.get([{
@@ -550,7 +584,6 @@ function pay() {
                 var auth_token = $('form.edit_checkout input[name=authenticity_token]').attr('value');
                 log(`Store ID: ${storeID}`)
                 log(`Checkout ID: ${checkoutID}`)
-
                 price = $('#checkout_total_price').text();
                 slackNotification('#36a64f', 'Added to Cart');
 
