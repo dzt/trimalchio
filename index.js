@@ -74,7 +74,15 @@ function init() {
             name: 'keywords',
             required: true,
             description: 'Keyword(s)'
-        }, {
+        },{
+            name: 'sizeStyle1',
+            required: false,
+            description: 'Usually is the size of the item but in some cases it could be the style. (Optional)'
+        },{
+            name: 'sizeStyle2',
+            required: false,
+            description: 'Usually is left blank, but if not it is usually the style of the item. (Optional)'
+        },{
             name: 'ccn',
             required: true,
             description: 'CC Number (with spaces)'
@@ -135,6 +143,7 @@ function init() {
             description: 'Timeout Delay (ms) for polling shipping Rates (Recommended: 2500)'
         }], function(err, result) {
 
+
             var slack = {
                 active: false,
                 token: "token goes here",
@@ -144,7 +153,23 @@ function init() {
                     icon_url: "http://i.imgur.com/06ubORD.jpg"
                 }
             }
+            const ogKwValue = result.keywords;
 
+            if (result.sizeStyle1 == "") {
+              const ogSizeStyle1 = null;
+            } else {
+               const ogSizeStyle1 = [result.sizeStyle1]
+            }
+
+            if (result.sizeStyle2 == "") {
+              const ogSizeStyle2 = null;
+            } else {
+               const ogSizeStyle2 = [result.sizeStyle2]
+            }
+
+            result.sizeStyle1 = ogSizeStyle1
+            result.sizeStyle2 = ogSizeStyle2;
+            result.keywords = [ogKwValue];
             result.paypal = false;
             result.slack = slack;
             result.show_stock = false;
@@ -153,7 +178,7 @@ function init() {
 
             fs.writeFile('config.json', JSON.stringify(result, null, 4), function(err) {
                 log('Config file generated! Starting process...');
-                log(`Looking for Keyword(s) matching "${config.keywords}"`);
+                log(`Seeking for Keyword(s)...`);
                 startMenu();
             });
         });
@@ -262,7 +287,7 @@ function start() {
 
 var userHasBeenNotifiedEmpty = false;
 
-function findItem(kw, proxy, cb) {
+function findItem(kw, cb) {
 
     if (config.base_url.endsWith(".xml")) {
         var parseString = require('xml2js').parseString;
@@ -291,7 +316,7 @@ function findItem(kw, proxy, cb) {
         });
 
     } else {
-
+        log('non xml shit')
         request({
             url: `${base_url}/products.json`,
             method: 'get',
@@ -329,11 +354,14 @@ function findItem(kw, proxy, cb) {
                     }
                 }
 
-                for (var i = 0; i < products.products.length; i++) {
-                    var name = products.products[i].title;
-                    if (name.toLowerCase().indexOf(config.keywords.toLowerCase()) > -1) {
-                        foundItems.push(products.products[i]);
-                    }
+
+                for (var i = 0; i < kw.length; i++) {
+                  for (var x = 0; x < products.products.length; x++) {
+                      var name = products.products[x].title;
+                      if (name.toLowerCase().indexOf(kw[i].toLowerCase()) > -1) {
+                          foundItems.push(products.products[x]);
+                      }
+                  }
                 }
 
                 if (foundItems.length > 0) {
@@ -343,7 +371,9 @@ function findItem(kw, proxy, cb) {
                         return cb(null, foundItems[0]);
                     } else {
 
-                        log(`We found more than 1 item matching with the keyword(s) "${config.keywords}" please select the item.\n`, 'warning');
+
+                        log(`We found more than 1 item matching with the keyword(s) please select the item.\n`, 'warning');
+                      
                         for (var i = 0; i < foundItems.length; i++) {
                             log(`Product Choice #${i + 1}: "${foundItems[i].title}"`);
                         }
@@ -458,6 +488,7 @@ function selectStyle() {
 
             var params = {
                 "text": "Item Found! Select a Style...",
+                "callback_id": "stylePick",
                 "attachments": [{
                     "title": match.title,
                     "author_name": "Trimalchio",
@@ -472,7 +503,6 @@ function selectStyle() {
                     "actions": styleoptions
                 }]
             }
-
             slackBot.postMessage(config.slack.channel, null, params);
         }
 
@@ -554,8 +584,7 @@ function pay() {
                 var auth_token = $('form.edit_checkout input[name=authenticity_token]').attr('value');
                 log(`Store ID: ${storeID}`)
                 log(`Checkout ID: ${checkoutID}`)
-
-                price = $('.total-recap__final-price').text();
+                price = $('#checkout_total_price').text();
                 slackNotification('#36a64f', 'Added to Cart');
 
                 return input(auth_token);
@@ -918,6 +947,11 @@ function submitCC(new_auth_token, price, payment_gateway) {
             }
         }, function(err, res, body) {
 
+          if (dev) {
+              fs.writeFile('debug.html', body, function(err) {
+                  log('The file debug.html was saved the root of the project file.');
+              });
+          }
             var $ = cheerio.load(body);
             if ($('input[name="step"]').val() == 'processing') {
                 log('Payment is processing, go check your email for a confirmation.');

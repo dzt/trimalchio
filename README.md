@@ -42,6 +42,7 @@ Launch Flags (not added yet):
 - [ ] Multiple Tasks
 - [x] Custom Menu
 - [ ] Slack Integration
+- [ ] Preset Size and Styling Configurations (adding multiple at once)
 
 ### Who
 Written by <a href="http://petersoboyejo.com/">@dzt</a>, made better by you.

@@ -8,6 +8,10 @@
   },
   "author": "Peter Soboyejo <thepcmrtim@gmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/dzt/trimalchio.git"
+  },
   "dependencies": {
     "cheerio": "^0.22.0",
     "console-stamp": "^0.2.5",
