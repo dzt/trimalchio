@@ -287,7 +287,7 @@ function start() {
 
 var userHasBeenNotifiedEmpty = false;
 
-function findItem(kw, cb) {
+function findItem(kw, proxy, cb) {
 
     if (config.base_url.endsWith(".xml")) {
         var parseString = require('xml2js').parseString;
@@ -373,7 +373,7 @@ function findItem(kw, cb) {
 
 
                         log(`We found more than 1 item matching with the keyword(s) please select the item.\n`, 'warning');
-                      
+
                         for (var i = 0; i < foundItems.length; i++) {
                             log(`Product Choice #${i + 1}: "${foundItems[i].title}"`);
                         }
