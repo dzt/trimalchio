@@ -154,17 +154,17 @@ function init() {
                 }
             }
             const ogKwValue = result.keywords;
-
+            var ogSizeStyle1, ogSizeStyle2;
             if (result.sizeStyle1 == "") {
-              const ogSizeStyle1 = null;
+              ogSizeStyle1 = null;
             } else {
-               const ogSizeStyle1 = [result.sizeStyle1]
+              ogSizeStyle1 = [result.sizeStyle1]
             }
 
             if (result.sizeStyle2 == "") {
-              const ogSizeStyle2 = null;
+              ogSizeStyle2 = null;
             } else {
-               const ogSizeStyle2 = [result.sizeStyle2]
+              ogSizeStyle2 = [result.sizeStyle2]
             }
 
             result.sizeStyle1 = ogSizeStyle1
