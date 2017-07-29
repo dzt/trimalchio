@@ -1,4 +1,4 @@
-const log = require('./utils/log');
+const log = require('./log');
 
 function setupSlackBot(config) {
   if (!config.slack.active) {

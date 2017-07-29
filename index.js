@@ -2,8 +2,8 @@ var fs = require('fs');
 var menu = require('node-menu');
 
 const log = require('./utils/log');
+const { setupSlackBot } = require('./utils/slack');
 const { loadConfig } = require('./config');
-const { setupSlackBot } = require('./slack');
 
 // INIT PROXIES - NEED TO LOAD PROXIES
 var proxies = [];
