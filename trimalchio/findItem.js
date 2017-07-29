@@ -1,5 +1,6 @@
 const fs = require('fs');
 const _ = require('underscore');
+const parseString = require('xml2js').parseString;
 
 const j = require('request').jar();
 const request = require('request').defaults({
@@ -19,8 +20,6 @@ module.exports = {};
 
 function findItem(config, slackBot, proxy, cb) {
   if (config.base_url.endsWith('.xml')) {
-    const parseString = require('xml2js').parseString;
-
     request(
       {
         url: config.base_url,
@@ -28,7 +27,7 @@ function findItem(config, slackBot, proxy, cb) {
         headers: {
           'User-Agent': userAgent,
         },
-        proxy: proxy,
+        proxy: proxy
       },
       function(err, res, body) {
         parseString(body, function(err, result) {
@@ -38,7 +37,10 @@ function findItem(config, slackBot, proxy, cb) {
               'error'
             );
             process.exit(1);
-          }
+          };
+
+          //console.log(result.url[0]);
+
           log('result.length ' + result.length);
           if (process.env.DEBUG) {
             fs.writeFile('debug.html', result, function(err) {
@@ -54,7 +56,6 @@ function findItem(config, slackBot, proxy, cb) {
       }
     );
   } else {
-    log('non xml shit');
     request(
       {
         url: `${config.base_url}/products.json`,
@@ -62,7 +63,7 @@ function findItem(config, slackBot, proxy, cb) {
         headers: {
           'User-Agent': userAgent,
         },
-        proxy: proxy,
+        proxy: proxy
       },
       function(err, res, body) {
         if (err) {
