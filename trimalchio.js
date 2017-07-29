@@ -1,28 +1,27 @@
-var j = require('request').jar();
-var request = require('request').defaults({
+const fs = require('fs');
+const open = require('open');
+const _ = require('underscore');
+const cheerio = require('cheerio');
+const phoneFormatter = require('phone-formatter');
+
+const j = require('request').jar();
+const request = require('request').defaults({
   timeout: 10000,
   jar: j,
 });
-var fs = require('fs');
-const open = require('open');
-var _ = require('underscore');
-var cheerio = require('cheerio');
-var phoneFormatter = require('phone-formatter');
 
 const prompt = require('./utils/prompt');
-
-var states = require('./states.json');
-
+const states = require('./states.json');
 const log = require('./utils/log');
 
-var userAgent =
+const userAgent =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36';
-var match, price, styleID, storeID, url, checkoutHost, checkoutID;
-var userHasBeenNotifiedEmpty = false;
+let match, price, styleID, storeID, url, checkoutHost, checkoutID;
+let userHasBeenNotifiedEmpty = false;
 
 function findItem(config, slackBot, proxy, cb) {
   if (config.base_url.endsWith('.xml')) {
-    var parseString = require('xml2js').parseString;
+    const parseString = require('xml2js').parseString;
 
     request(
       {
@@ -73,7 +72,66 @@ function findItem(config, slackBot, proxy, cb) {
           return cb(err, null);
         } else {
           try {
-            var products = JSON.parse(body);
+            const products = JSON.parse(body);
+
+            const foundItems = [];
+
+            if (products.products.length === 0) {
+              if (userHasBeenNotifiedEmpty) {
+                return cb(true, null);
+              } else {
+                userHasBeenNotifiedEmpty = true;
+                log("No item's available right now still looking...", 'error');
+                return cb(true, null);
+              }
+            }
+
+            for (let i = 0; i < config.keywords.length; i++) {
+              for (let x = 0; x < products.products.length; x++) {
+                const name = products.products[x].title;
+                if (
+                  name.toLowerCase().indexOf(config.keywords[i].toLowerCase()) >
+                  -1
+                ) {
+                  foundItems.push(products.products[x]);
+                }
+              }
+            }
+
+            if (foundItems.length > 0) {
+              if (foundItems.length === 1) {
+                log(`Item Found! - "${foundItems[0].title}"`);
+                match = foundItems[0];
+                return cb(null, foundItems[0]);
+              } else {
+                log(
+                  `We found more than 1 item matching with the keyword(s) please select the item.\n`,
+                  'warning'
+                );
+
+                for (let j = 0; j < foundItems.length; j++) {
+                  log(`Product Choice #${j + 1}: "${foundItems[j].title}"`);
+                }
+
+                prompt.get(
+                  [
+                    {
+                      name: 'productSelect',
+                      required: true,
+                      description: 'Select a Product # (ex: "2")',
+                    },
+                  ],
+                  function(err, result) {
+                    const choice = parseInt(result.productSelect);
+                    match = foundItems[choice - 1];
+                    log(`You selected - "${match.title}`);
+                    return cb(null, match);
+                  }
+                );
+              }
+            } else {
+              return cb('Match not found yet...', null);
+            }
           } catch (e) {
             if (res.statusCode == 430) {
               log(
@@ -89,65 +147,6 @@ function findItem(config, slackBot, proxy, cb) {
               process.exit(1);
             }
           }
-
-          var foundItems = [];
-
-          if (products.products.length === 0) {
-            if (userHasBeenNotifiedEmpty) {
-              return cb(true, null);
-            } else {
-              userHasBeenNotifiedEmpty = true;
-              log("No item's available right now still looking...", 'error');
-              return cb(true, null);
-            }
-          }
-
-          for (var i = 0; i < config.keywords.length; i++) {
-            for (var x = 0; x < products.products.length; x++) {
-              var name = products.products[x].title;
-              if (
-                name.toLowerCase().indexOf(config.keywords[i].toLowerCase()) >
-                -1
-              ) {
-                foundItems.push(products.products[x]);
-              }
-            }
-          }
-
-          if (foundItems.length > 0) {
-            if (foundItems.length === 1) {
-              log(`Item Found! - "${foundItems[0].title}"`);
-              match = foundItems[0];
-              return cb(null, foundItems[0]);
-            } else {
-              log(
-                `We found more than 1 item matching with the keyword(s) please select the item.\n`,
-                'warning'
-              );
-
-              for (var j = 0; j < foundItems.length; j++) {
-                log(`Product Choice #${j + 1}: "${foundItems[j].title}"`);
-              }
-
-              prompt.get(
-                [
-                  {
-                    name: 'productSelect',
-                    required: true,
-                    description: 'Select a Product # (ex: "2")',
-                  },
-                ],
-                function(err, result) {
-                  var choice = parseInt(result.productSelect);
-                  match = foundItems[choice - 1];
-                  log(`You selected - "${match.title}`);
-                  return cb(null, match);
-                }
-              );
-            }
-          } else {
-            return cb('Match not found yet...', null);
-          }
         }
       }
     );
@@ -156,7 +155,7 @@ function findItem(config, slackBot, proxy, cb) {
 
 module.exports.findItem = findItem;
 
-var findVariantStock = function(config, slackBot, handle, id, cb) {
+const findvariantstock = function(config, slackBot, handle, id, cb) {
   request(
     {
       url: `${config.base_url}/products/` + handle + '.json',
@@ -168,31 +167,32 @@ var findVariantStock = function(config, slackBot, handle, id, cb) {
     },
     function(err, res, body) {
       try {
-        var variants = JSON.parse(body).product.variants;
+        const variants = JSON.parse(body).product.variants;
+
+        const constiant = _.findWhere(variants, {
+          id: id,
+        });
+        if (constiant.inventory_quantity) {
+          return cb(null, constiant.inventory_quantity);
+        } else {
+          return cb(null, 'Unavailable');
+        }
       } catch (e) {
         return cb(true, null);
-      }
-
-      var variant = _.findWhere(variants, {
-        id: id,
-      });
-      if (variant.inventory_quantity) {
-        return cb(null, variant.inventory_quantity);
-      } else {
-        return cb(null, 'Unavailable');
       }
     }
   );
 };
 
 function selectStyle(config, slackBot, match) {
+  let stock;
   if (match.variants.length === 1) {
     styleID = match.variants[0].id;
 
     if (config.show_stock == false) {
       stock = 'Disabled';
     } else {
-      findVariantStock(
+      findvariantstock(
         config,
         slackBot,
         match.handle,
@@ -215,15 +215,14 @@ function selectStyle(config, slackBot, match) {
       );
     }
   } else {
-    for (var i = 0; i < match.variants.length; i++) {
-      var styleName = match.variants[i].option1;
-      var option2 = match.variants[i].option2;
+    for (let i = 0; i < match.variants.length; i++) {
+      const styleName = match.variants[i].option1;
+      const option2 = match.variants[i].option2;
 
-      var stock;
       if (config.show_stock == false) {
         stock = 'Disabled';
       } else {
-        findVariantStock(match.handle, match.variants[i].id, function(
+        findvariantstock(match.handle, match.variants[i].id, function(
           err,
           res
         ) {
@@ -246,8 +245,8 @@ function selectStyle(config, slackBot, match) {
     }
 
     if (config.slack.active) {
-      var styleoptions = [];
-      for (var j = 0; j < match.variants.length; j++) {
+      const styleoptions = [];
+      for (let j = 0; j < match.variants.length; j++) {
         styleoptions.push({
           name: match.variants[j].option1,
           text: match.variants[j].option1,
@@ -256,7 +255,7 @@ function selectStyle(config, slackBot, match) {
         });
       }
 
-      var params = {
+      const params = {
         text: 'Item Found! Select a Style...',
         callback_id: 'stylePick',
         attachments: [
@@ -289,7 +288,7 @@ function selectStyle(config, slackBot, match) {
       ],
       function(err, result) {
         // Check if they have a second option open
-        var choice = parseInt(result.styleSelect);
+        const choice = parseInt(result.styleSelect);
         styleID = match.variants[choice - 1].id;
         log(
           `You selected - "${match.variants[choice - 1].option1}" (${styleID})`
@@ -382,11 +381,11 @@ function pay(config, slackBot) {
                 process.exit(1);
               }
 
-              var $ = cheerio.load(body);
+              const $ = cheerio.load(body);
               url = res.request.href;
               checkoutID = url.split('checkouts/')[1];
               storeID = url.split('/')[3];
-              var auth_token = $(
+              const auth_token = $(
                 'form.edit_checkout input[name=authenticity_token]'
               ).attr('value');
               log(`Store ID: ${storeID}`);
@@ -482,7 +481,7 @@ function input(config, slackBot, auth_token) {
       if (err) {
         log(err, 'error');
       }
-      var $ = cheerio.load(body);
+      const $ = cheerio.load(body);
       return ship(
         config,
         $('form.edit_checkout input[name=authenticity_token]').attr('value')
@@ -563,14 +562,14 @@ function ship(config, slackBot, auth_token) {
       formData: form,
     },
     function(err, res, body) {
-      var $ = cheerio.load(body);
-      var shipping_pole_url = $(
+      const $ = cheerio.load(body);
+      const shipping_pole_url = $(
         'div[data-poll-refresh="[data-step=shipping_method]"]'
       ).attr('data-poll-target');
       if (shipping_pole_url === undefined) {
-        var firstShippingOption = $('div.content-box__row .radio-wrapper').attr(
-          'data-shipping-method'
-        );
+        const firstShippingOption = $(
+          'div.content-box__row .radio-wrapper'
+        ).attr('data-shipping-method');
         if (firstShippingOption == undefined) {
           log(
             `${config.base_url} is Incompatible, sorry for the inconvenience. A browser checkout session will be opened momentarily.`
@@ -594,30 +593,6 @@ function ship(config, slackBot, auth_token) {
 }
 
 function submitShipping(config, slackBot, res) {
-  /* RIP Nightmarejs lol
-          log('Transfering Cookies over to headless session...');
-          var cookies = JSON.stringify(j.getCookies('http://www.crapeyewear.com'));
-          var parsedCookies = JSON.parse(cookies);
-          log(`Number of Cookies discovered: ${parsedCookies.length}`)
-          for (var i = 0; i < parsedCookies.length; i++) {
-              if (parsedCookies[i].value === undefined) {
-                  var val = ''
-              } else {
-                  var val = parsedCookies[i].value;
-              }
-
-              if (i != 7) {
-                  nightmareCookies.push({
-                      "url": 'http://www.crapeyewear.com',
-                      "name": parsedCookies[i].key,
-                      "value": val
-                  });
-              }
-          }
-          */
-
-  // WTF IS THIS RETURNING A 202 (UPDATE: FIXED)
-
   if (res.type == 'poll') {
     log(`Shipping Poll URL: ${checkoutHost}${res.value}`);
     log(`Timing out Shipping for ${config.shipping_pole_timeout}ms`);
@@ -634,12 +609,12 @@ function submitShipping(config, slackBot, res) {
           },
         },
         function(err, res, body) {
-          var $ = cheerio.load(body);
+          const $ = cheerio.load(body);
 
-          var shipping_method_value = $('.radio-wrapper').attr(
+          const shipping_method_value = $('.radio-wrapper').attr(
             'data-shipping-method'
           );
-          var auth_token = $(
+          const auth_token = $(
             'form[data-shipping-method-form="true"] input[name="authenticity_token"]'
           ).attr('value');
 
@@ -666,15 +641,15 @@ function submitShipping(config, slackBot, res) {
               },
             },
             function(err, res, body) {
-              var $ = cheerio.load(body);
+              const $ = cheerio.load(body);
 
-              var price = $('input[name="checkout[total_price]"]').attr(
+              const price = $('input[name="checkout[total_price]"]').attr(
                 'value'
               );
-              var payment_gateway = $(
+              const payment_gateway = $(
                 'input[name="checkout[payment_gateway]"]'
               ).attr('value');
-              var new_auth_token = $(
+              const new_auth_token = $(
                 'form[data-payment-form=""] input[name="authenticity_token"]'
               ).attr('value');
 
@@ -718,11 +693,11 @@ function submitShipping(config, slackBot, res) {
         },
       },
       function(err, res, body) {
-        var $ = cheerio.load(body);
-        var payment_gateway = $('input[name="checkout[payment_gateway]"]').attr(
-          'value'
-        );
-        var new_auth_token = $(
+        const $ = cheerio.load(body);
+        const payment_gateway = $(
+          'input[name="checkout[payment_gateway]"]'
+        ).attr('value');
+        const new_auth_token = $(
           'form[data-payment-form=""] input[name="authenticity_token"]'
         ).attr('value');
 
@@ -736,7 +711,7 @@ function submitShipping(config, slackBot, res) {
 }
 
 function submitCC(config, slackBot, new_auth_token, price, payment_gateway) {
-  var ccInfo = {
+  const ccInfo = {
     credit_card: {
       number: config.ccn,
       verification_value: config.ccv,
@@ -757,7 +732,7 @@ function submitCC(config, slackBot, new_auth_token, price, payment_gateway) {
       body: JSON.stringify(ccInfo),
     },
     function(err, res, body) {
-      var sValue = JSON.parse(body).id;
+      const sValue = JSON.parse(body).id;
 
       request(
         {
@@ -814,7 +789,7 @@ function submitCC(config, slackBot, new_auth_token, price, payment_gateway) {
               );
             });
           }
-          var $ = cheerio.load(body);
+          const $ = cheerio.load(body);
           if ($('input[name="step"]').val() == 'processing') {
             log(
               'Payment is processing, go check your email for a confirmation.'
@@ -849,7 +824,7 @@ function submitCC(config, slackBot, new_auth_token, price, payment_gateway) {
               `This website only supports PayPal and is currently incompatible with Trimalchio, sorry for the inconvenience. <${res
                 .request.href}|Click Here>`
             );
-            var open = require('open');
+            const open = require('open');
             log(
               'This website only supports PayPal and is currently incompatible with Trimalchio, sorry for the inconvenience. A browser session with the PayPal checkout will open momentarily.'
             );
@@ -904,7 +879,7 @@ function submitCC(config, slackBot, new_auth_token, price, payment_gateway) {
 
 function slackNotification(config, slackBot, color, type) {
   if (config.slack.active) {
-    var params = {
+    const params = {
       username: config.slack.settings.username,
       icon_url: config.slack.settings.icon_url,
       attachments: [
