@@ -42,6 +42,7 @@ Launch Flags (not added yet):
 - [ ] Multiple Tasks
 - [x] Custom Menu
 - [ ] Slack Integration
+- [ ] Captcha Harvester
 - [ ] Preset Size and Styling Configurations (adding multiple at once)
 
 ### Proxies?
@@ -51,6 +52,11 @@ Of course Old Sport! Inside the `proxies.txt` file you can simply add numerous p
 ip:port
 ip:port:user:pass
 ```
+
+### Captcha?
+The Captcha feature is currently in the process of being built into Trimlachio and will be taken care of in the coming days with a much more easier solution than
+other utilizing a custom built Chrome Extension that doesn't require any tampering with the hosts file. For anybody who is wondering the harvester is located on port `7492`.
+
 
 ### Who
 Written by <a href="http://petersoboyejo.com/">@dzt</a>, made better by you.

@@ -1,0 +1,30 @@
+{
+"update_url": "https://clients2.google.com/service/update2/crx",
+
+  "name": "Trimalchio Harvester",
+  "version": "1.0.0",
+  "manifest_version": 1,
+  "description": "Captcha Harvester for Trimalchio.",
+  "homepage_url": "http://github.com/dzt/captcha-harvester",
+  "icons": {
+    "128": "icons/icon128.png"
+  },
+  "browser_action": {
+    "default_icon": "icons/icon128.png",
+    "default_title": "Helper",
+    "default_popup": "browser_action.html"
+  },
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "permissions": [
+    "activeTab",
+    "http://*/*",
+    "https://*/*",
+    "proxy",
+    "webRequest",
+    "webRequestBlocking"
+  ]
+}
