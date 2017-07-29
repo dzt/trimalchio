@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "DEBUG=true "
+    "start": "node index",
+    "dev": "DEBUG=true node index"
   },
   "author": "Peter Soboyejo <thepcmrtim@gmail.com>",
   "license": "MIT",

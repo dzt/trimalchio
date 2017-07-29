@@ -14,7 +14,6 @@ function log(msg, type) {
   }
 }
 
-var dev = false;
 var prompt = require('prompt');
 var j = require('request').jar();
 var states = require('./states.json');
@@ -25,11 +24,9 @@ var request = require('request').defaults({
 var _ = require('underscore');
 var cheerio = require('cheerio');
 var phoneFormatter = require('phone-formatter');
-//var Nightmare = require('nightmare');
-//var wait = require('nightmare-wait-for-url');
-var http = require('http');
 var fs = require('fs');
 var menu = require('node-menu');
+const open = require('open');
 
 var Bot, slackBot;
 
@@ -205,6 +202,9 @@ function init() {
         fs.writeFile('config.json', JSON.stringify(result, null, 4), function(
           err
         ) {
+          if (err) {
+            log(err, 'error');
+          }
           log('Config file generated! Starting process...');
           log(`Seeking for Keyword(s)...`);
           startMenu();
@@ -313,8 +313,6 @@ var userAgent =
 prompt.message = 'Input';
 var match, price, styleID, config, storeID, url, checkoutHost, checkoutID;
 
-var nightmareCookies = [];
-
 prompt.start({
   noHandleSIGINT: true,
 });
@@ -363,8 +361,11 @@ function findItem(kw, proxy, cb) {
             process.exit(1);
           }
           log('result.length ' + result.length);
-          if (dev) {
+          if (process.env.DEBUG) {
             fs.writeFile('debug.html', result, function(err) {
+              if (err) {
+                log(err, 'error');
+              }
               log(
                 'The file debug.html was saved the root of the project file.'
               );
@@ -439,8 +440,8 @@ function findItem(kw, proxy, cb) {
                 'warning'
               );
 
-              for (var i = 0; i < foundItems.length; i++) {
-                log(`Product Choice #${i + 1}: "${foundItems[i].title}"`);
+              for (var j = 0; j < foundItems.length; j++) {
+                log(`Product Choice #${j + 1}: "${foundItems[j].title}"`);
               }
 
               prompt.get(
@@ -485,11 +486,11 @@ var findVariantStock = function(handle, id, cb) {
         return cb(true, null);
       }
 
-      var res = _.findWhere(variants, {
+      var variant = _.findWhere(variants, {
         id: id,
       });
-      if (res.inventory_quantity) {
-        return cb(null, res.inventory_quantity);
+      if (variant.inventory_quantity) {
+        return cb(null, variant.inventory_quantity);
       } else {
         return cb(null, 'Unavailable');
       }
@@ -499,7 +500,6 @@ var findVariantStock = function(handle, id, cb) {
 
 function selectStyle() {
   if (match.variants.length === 1) {
-    var singleItemStock;
     styleID = match.variants[0].id;
 
     if (config.show_stock == false) {
@@ -507,7 +507,6 @@ function selectStyle() {
     } else {
       findVariantStock(match.handle, match.variants[0].id, function(err, res) {
         if (err) {
-          singleItemStock = 'Unavailable';
           log(
             `Style Selected: "${match.variants[0]
               .option1}" (${styleID}) | Stock: Unavailable`
@@ -555,12 +554,12 @@ function selectStyle() {
 
     if (config.slack.active) {
       var styleoptions = [];
-      for (var i = 0; i < match.variants.length; i++) {
+      for (var j = 0; j < match.variants.length; j++) {
         styleoptions.push({
-          name: match.variants[i].option1,
-          text: match.variants[i].option1,
+          name: match.variants[j].option1,
+          text: match.variants[j].option1,
           type: 'button',
-          value: match.variants[i].id,
+          value: match.variants[j].id,
         });
       }
 
@@ -618,7 +617,11 @@ function pay() {
         'User-Agent': userAgent,
       },
     },
-    function(err, res, body) {}
+    function(err) {
+      if (err) {
+        log(err, 'error');
+      }
+    }
   );
 
   request(
@@ -640,7 +643,10 @@ function pay() {
         qty: '1',
       },
     },
-    function(err, res, body) {
+    function(err) {
+      if (err) {
+        log(err, 'error');
+      }
       request(
         {
           url: `${base_url}/cart`,
@@ -650,7 +656,10 @@ function pay() {
             'User-Agent': userAgent,
           },
         },
-        function(err, res, body) {
+        function(err) {
+          if (err) {
+            log(err, 'error');
+          }
           log('Added to cart!');
           log('Checking out your item...');
           request(
@@ -699,10 +708,11 @@ function pay() {
 
 function input(auth_token) {
   log(`Checkout URL: ${url}`);
+  let form;
 
   if (url.indexOf('checkout.shopify.com') > -1) {
     log(`Checkout with checkout.shopify.com discovered`);
-    var form = {
+    form = {
       utf8: '✓',
       _method: 'patch',
       authenticity_token: auth_token,
@@ -710,16 +720,6 @@ function input(auth_token) {
       step: 'shipping_method',
       'checkout[email]': config.email,
       'checkout[buyer_accepts_marketing]': '1',
-      'checkout[shipping_address][first_name]': config.firstName,
-      'checkout[shipping_address][last_name]': config.lastName,
-      'checkout[shipping_address][company]': '',
-      'checkout[shipping_address][address1]': config.address,
-      'checkout[shipping_address][address2]': '',
-      'checkout[shipping_address][city]': config.city,
-      'checkout[shipping_address][country]': 'US',
-      'checkout[shipping_address][province]': config.state,
-      'checkout[shipping_address][zip]': config.zipCode,
-      'checkout[shipping_address][phone]': config.phoneNumber,
       'checkout[shipping_address][first_name]': config.firstName,
       'checkout[shipping_address][last_name]': config.lastName,
       'checkout[shipping_address][company]': '',
@@ -736,7 +736,7 @@ function input(auth_token) {
       'checkout[client_details][browser_height]': '631',
     };
   } else {
-    var form = {
+    form = {
       utf8: '✓',
       _method: 'patch',
       authenticity_token: auth_token,
@@ -749,12 +749,9 @@ function input(auth_token) {
       'checkout[shipping_address][address2]': '',
       'checkout[shipping_address][city]': config.city,
       'checkout[shipping_address][country]': 'United States',
-      'checkout[shipping_address][province]': config.state,
-      'checkout[shipping_address][province]': '',
       'checkout[shipping_address][province]': states[config.state],
       'checkout[shipping_address][zip]': config.zipCode,
       'checkout[shipping_address][phone]': config.phoneNumber,
-      'checkout[remember_me]': '',
       'checkout[remember_me]': '0',
       'checkout[client_details][browser_width]': '979',
       'checkout[client_details][browser_height]': '631',
@@ -779,6 +776,9 @@ function input(auth_token) {
       qs: form,
     },
     function(err, res, body) {
+      if (err) {
+        log(err, 'error');
+      }
       var $ = cheerio.load(body);
       return ship(
         $('form.edit_checkout input[name=authenticity_token]').attr('value')
@@ -788,8 +788,10 @@ function input(auth_token) {
 }
 
 function ship(auth_token) {
+  let form;
+
   if (url.indexOf('checkout.shopify.com') > -1) {
-    var form = {
+    form = {
       _method: 'patch',
       authenticity_token: auth_token,
       button: '',
@@ -812,7 +814,7 @@ function ship(auth_token) {
       utf8: '✓',
     };
   } else {
-    var form = {
+    form = {
       utf8: '✓',
       _method: 'patch',
       authenticity_token: auth_token,
@@ -1092,8 +1094,11 @@ function submitCC(new_auth_token, price, payment_gateway) {
           },
         },
         function(err, res, body) {
-          if (dev) {
+          if (process.env.DEBUG) {
             fs.writeFile('debug.html', body, function(err) {
+              if (err) {
+                log(err, 'error');
+              }
               log(
                 'The file debug.html was saved the root of the project file.'
               );
