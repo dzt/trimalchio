@@ -2,7 +2,7 @@ var config = {
     mode: "pac_script",
     pacScript: {
         data: "function FindProxyForURL(url, host) {\n" +
-        "  if (shExpMatch(url, \'*helper*\'))\n" +
+        "  if (shExpMatch(url, \'*trimalchio*\'))\n" +
         "    return 'PROXY 127.0.0.1:7492';\n" +
         "  return 'DIRECT';\n" +
         "}"
