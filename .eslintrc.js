@@ -11,7 +11,7 @@ module.exports = {
   rules: {
     'no-console': ['off'],
     'prettier/prettier': [
-      'error',
+      'warn',
       {
         singleQuote: true,
         trailingComma: 'es5',

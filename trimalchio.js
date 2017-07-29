@@ -20,13 +20,13 @@ var userAgent =
 var match, price, styleID, storeID, url, checkoutHost, checkoutID;
 var userHasBeenNotifiedEmpty = false;
 
-function findItem(base_url, kw, proxy, cb) {
-  if (base_url.endsWith('.xml')) {
+function findItem(config, slackBot, proxy, cb) {
+  if (config.base_url.endsWith('.xml')) {
     var parseString = require('xml2js').parseString;
 
     request(
       {
-        url: base_url,
+        url: config.base_url,
         method: 'get',
         headers: {
           'User-Agent': userAgent,
@@ -60,7 +60,7 @@ function findItem(base_url, kw, proxy, cb) {
     log('non xml shit');
     request(
       {
-        url: `${base_url}/products.json`,
+        url: `${config.base_url}/products.json`,
         method: 'get',
         headers: {
           'User-Agent': userAgent,
@@ -102,10 +102,13 @@ function findItem(base_url, kw, proxy, cb) {
             }
           }
 
-          for (var i = 0; i < kw.length; i++) {
+          for (var i = 0; i < config.keywords.length; i++) {
             for (var x = 0; x < products.products.length; x++) {
               var name = products.products[x].title;
-              if (name.toLowerCase().indexOf(kw[i].toLowerCase()) > -1) {
+              if (
+                name.toLowerCase().indexOf(config.keywords[i].toLowerCase()) >
+                -1
+              ) {
                 foundItems.push(products.products[x]);
               }
             }
@@ -153,10 +156,10 @@ function findItem(base_url, kw, proxy, cb) {
 
 module.exports.findItem = findItem;
 
-var findVariantStock = function(handle, id, cb) {
+var findVariantStock = function(config, slackBot, handle, id, cb) {
   request(
     {
-      url: `${base_url}/products/` + handle + '.json',
+      url: `${config.base_url}/products/` + handle + '.json',
       followAllRedirects: true,
       method: 'get',
       headers: {
@@ -182,28 +185,34 @@ var findVariantStock = function(handle, id, cb) {
   );
 };
 
-function selectStyle(match) {
+function selectStyle(config, slackBot, match) {
   if (match.variants.length === 1) {
     styleID = match.variants[0].id;
 
     if (config.show_stock == false) {
       stock = 'Disabled';
     } else {
-      findVariantStock(match.handle, match.variants[0].id, function(err, res) {
-        if (err) {
-          log(
-            `Style Selected: "${match.variants[0]
-              .option1}" (${styleID}) | Stock: Unavailable`
-          );
-          pay();
-        } else {
-          log(
-            `Style Selected: "${match.variants[0]
-              .option1}" (${styleID}) | Stock: ${res}`
-          );
-          pay();
+      findVariantStock(
+        config,
+        slackBot,
+        match.handle,
+        match.variants[0].id,
+        function(err, res) {
+          if (err) {
+            log(
+              `Style Selected: "${match.variants[0]
+                .option1}" (${styleID}) | Stock: Unavailable`
+            );
+            pay(config);
+          } else {
+            log(
+              `Style Selected: "${match.variants[0]
+                .option1}" (${styleID}) | Stock: ${res}`
+            );
+            pay(config);
+          }
         }
-      });
+      );
     }
   } else {
     for (var i = 0; i < match.variants.length; i++) {
@@ -285,16 +294,17 @@ function selectStyle(match) {
         log(
           `You selected - "${match.variants[choice - 1].option1}" (${styleID})`
         );
-        pay();
+        pay(config);
       }
     );
   }
 }
+module.exports.selectStyle = selectStyle;
 
-function pay() {
+function pay(config, slackBot) {
   request(
     {
-      url: `${base_url}/products/` + match.handle,
+      url: `${config.base_url}/products/` + match.handle,
       followAllRedirects: true,
       method: 'get',
       headers: {
@@ -310,16 +320,16 @@ function pay() {
 
   request(
     {
-      url: `${base_url}/cart/add.js`,
+      url: `${config.base_url}/cart/add.js`,
       followAllRedirects: true,
       method: 'post',
       headers: {
-        Origin: base_url,
+        Origin: config.base_url,
         'User-Agent': userAgent,
         'Content-Type': 'application/x-www-form-urlencoded',
         Accept:
           'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        Referer: base_url + '/products/' + match.handle,
+        Referer: config.base_url + '/products/' + match.handle,
         'Accept-Language': 'en-US,en;q=0.8',
       },
       formData: {
@@ -333,7 +343,7 @@ function pay() {
       }
       request(
         {
-          url: `${base_url}/cart`,
+          url: `${config.base_url}/cart`,
           followAllRedirects: true,
           method: 'get',
           headers: {
@@ -348,7 +358,7 @@ function pay() {
           log('Checking out your item...');
           request(
             {
-              url: `${base_url}/cart`,
+              url: `${config.base_url}/cart`,
               followAllRedirects: true,
               method: 'post',
               headers: {
@@ -360,6 +370,9 @@ function pay() {
               },
             },
             function(err, res, body) {
+              if (err) {
+                log(err, 'error');
+              }
               checkoutHost = 'https://' + res.request.originalHost;
 
               if (res.request.href.indexOf('stock_problems') > -1) {
@@ -379,9 +392,15 @@ function pay() {
               log(`Store ID: ${storeID}`);
               log(`Checkout ID: ${checkoutID}`);
               price = $('#checkout_total_price').text();
-              slackNotification('#36a64f', 'Added to Cart');
+              slackNotification(
+                config,
+                slackBot,
+                slackBot,
+                '#36a64f',
+                'Added to Cart'
+              );
 
-              return input(auth_token);
+              return input(config, slackBot, auth_token);
             }
           );
         }
@@ -390,7 +409,7 @@ function pay() {
   );
 }
 
-function input(auth_token) {
+function input(config, slackBot, auth_token) {
   log(`Checkout URL: ${url}`);
   let form;
 
@@ -465,13 +484,14 @@ function input(auth_token) {
       }
       var $ = cheerio.load(body);
       return ship(
+        config,
         $('form.edit_checkout input[name=authenticity_token]').attr('value')
       );
     }
   );
 }
 
-function ship(auth_token) {
+function ship(config, slackBot, auth_token) {
   let form;
 
   if (url.indexOf('checkout.shopify.com') > -1) {
@@ -553,19 +573,19 @@ function ship(auth_token) {
         );
         if (firstShippingOption == undefined) {
           log(
-            `${base_url} is Incompatible, sorry for the inconvenience. A browser checkout session will be opened momentarily.`
+            `${config.base_url} is Incompatible, sorry for the inconvenience. A browser checkout session will be opened momentarily.`
           );
           open(url);
           process.exit(1);
         } else {
-          return submitShipping({
+          return submitShipping(config, slackBot, {
             type: 'direct',
             value: firstShippingOption,
             auth_token: $('input[name="authenticity_token"]').val(),
           });
         }
       }
-      return submitShipping({
+      return submitShipping(config, slackBot, {
         type: 'poll',
         value: shipping_pole_url,
       });
@@ -573,7 +593,7 @@ function ship(auth_token) {
   );
 }
 
-function submitShipping(res) {
+function submitShipping(config, slackBot, res) {
   /* RIP Nightmarejs lol
           log('Transfering Cookies over to headless session...');
           var cookies = JSON.stringify(j.getCookies('http://www.crapeyewear.com'));
@@ -662,7 +682,13 @@ function submitShipping(res) {
               // log(`Price: ${price}`);
               // log(`Payment Gateway ID: ${payment_gateway}`);
 
-              submitCC(new_auth_token, price, payment_gateway);
+              submitCC(
+                config,
+                slackBot,
+                new_auth_token,
+                price,
+                payment_gateway
+              );
             }
           );
         }
@@ -703,13 +729,13 @@ function submitShipping(res) {
         log(`Price: ${price}`);
         log(`Payment Gateway ID: ${payment_gateway}`);
 
-        submitCC(new_auth_token, price, payment_gateway);
+        submitCC(config, slackBot, new_auth_token, price, payment_gateway);
       }
     );
   }
 }
 
-function submitCC(new_auth_token, price, payment_gateway) {
+function submitCC(config, slackBot, new_auth_token, price, payment_gateway) {
   var ccInfo = {
     credit_card: {
       number: config.ccn,
@@ -794,6 +820,8 @@ function submitCC(new_auth_token, price, payment_gateway) {
               'Payment is processing, go check your email for a confirmation.'
             );
             slackNotification(
+              config,
+              slackBot,
               '#36a64f',
               'Payment is processing, go check your email for a confirmation.'
             );
@@ -805,6 +833,8 @@ function submitCC(new_auth_token, price, payment_gateway) {
               'Payment is processing, go check your email for a confirmation.'
             );
             slackNotification(
+              config,
+              slackBot,
               '#36a64f',
               'Payment is processing, go check your email for a confirmation.'
             );
@@ -813,6 +843,8 @@ function submitCC(new_auth_token, price, payment_gateway) {
             }, 4500);
           } else if (res.request.href.indexOf('paypal.com') > -1) {
             slackNotification(
+              config,
+              slackBot,
               '#4FC3F7',
               `This website only supports PayPal and is currently incompatible with Trimalchio, sorry for the inconvenience. <${res
                 .request.href}|Click Here>`
@@ -827,13 +859,20 @@ function submitCC(new_auth_token, price, payment_gateway) {
             }, 3000);
           } else if ($('div.notice--warning p.notice__text')) {
             if ($('div.notice--warning p.notice__text') == '') {
-              slackNotification('#ef5350', 'An unknown error has occured.');
+              slackNotification(
+                config,
+                slackBot,
+                '#ef5350',
+                'An unknown error has occured.'
+              );
               log(`An unknown error has occured please try again.`, 'error');
               setTimeout(function() {
                 return process.exit(1);
               }, 4500);
             } else {
               slackNotification(
+                config,
+                slackBot,
                 '#ef5350',
                 `${$('div.notice--warning p.notice__text').eq(0).text()}`
               );
@@ -846,7 +885,12 @@ function submitCC(new_auth_token, price, payment_gateway) {
               }, 4500);
             }
           } else {
-            slackNotification('#ef5350', 'An unknown error has occured.');
+            slackNotification(
+              config,
+              slackBot,
+              '#ef5350',
+              'An unknown error has occured.'
+            );
             log(`An unknown error has occured please try again.`, 'error');
             setTimeout(function() {
               return process.exit(1);
@@ -858,7 +902,7 @@ function submitCC(new_auth_token, price, payment_gateway) {
   );
 }
 
-function slackNotification(color, type) {
+function slackNotification(config, slackBot, color, type) {
   if (config.slack.active) {
     var params = {
       username: config.slack.settings.username,

@@ -2,9 +2,8 @@ var fs = require('fs');
 var menu = require('node-menu');
 
 const log = require('./utils/log');
-const {loadConfig} = require('./config');
-
-var Bot, slackBot;
+const { loadConfig } = require('./config');
+const { setupSlackBot } = require('./slack');
 
 // INIT PROXIES - NEED TO LOAD PROXIES
 var proxies = [];
@@ -30,7 +29,7 @@ function formatProxy(str) {
   }
 }
 
-function startMenu(config) {
+function startMenu(slackBot, config) {
   var customHeader = `
                         888            d8b                        888          888      d8b
                         888            Y8P                        888          888      Y8P
@@ -47,29 +46,7 @@ function startMenu(config) {
   menu
     .addItem('Basic Mode', function() {
       log(`Looking for Keyword(s) matching "${config.keywords}"`);
-      if (config.slack.active) {
-        Bot = require('slackbots');
-        slackBot = new Bot({
-          name: config.slack.settings.username,
-          token: config.slack.token,
-        });
-        log('Slack Bot is currently enabled.', 'info');
-        slackBot.on('start', function() {
-          slackBot.postMessageToChannel(
-            config.slack.channel,
-            'Trimalchio is currently active (▰˘◡˘▰)',
-            config.slack.settings
-          );
-        });
-        slackBot.on('error', function() {
-          log(
-            'error',
-            'An error occurred while connecting to Slack, please try again.'
-          );
-          return process.exit();
-        });
-      }
-      vamonos(config);
+      startBasicMode(slackBot, config);
       menu.resetMenu();
     })
     .addItem('Early Link Mode', function() {
@@ -126,28 +103,26 @@ var index = 0;
 
 const { findItem, selectStyle } = require('./trimalchio');
 
-function vamonos(config) {
+function startBasicMode(slackBot, config) {
   if (index >= proxies.length) {
     index = 0;
   }
 
-  findItem(config.base_url, config.keywords, proxies[index], function(
-    err,
-    res
-  ) {
+  findItem(config, slackBot, proxies[index], function(err, res) {
     if (err) {
       setTimeout(() => {
-        return vamonos();
+        return startBasicMode();
       }, 10000); // delay
     } else {
-      selectStyle(res);
+      selectStyle(config, slackBot, res);
     }
   });
 }
 
 function init() {
   loadConfig(config => {
-    startMenu(config);
+    const slackBot = setupSlackBot(config);
+    startMenu(slackBot, config);
   });
 }
 
