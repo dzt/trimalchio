@@ -101,7 +101,8 @@ function startMenu(slackBot, config) {
 
 var index = 0;
 
-const { findItem, selectStyle } = require('./trimalchio');
+const { pay } = require('./trimalchio/pay');
+const { findItem, selectStyle } = require('./trimalchio/findItem');
 
 function startBasicMode(slackBot, config) {
   if (index >= proxies.length) {
@@ -114,7 +115,9 @@ function startBasicMode(slackBot, config) {
         return startBasicMode();
       }, 10000); // delay
     } else {
-      selectStyle(config, slackBot, res);
+      selectStyle(config, slackBot, res, (match, styleID) => {
+        pay(config, slackBot, match, styleID);
+      });
     }
   });
 }
