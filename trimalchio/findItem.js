@@ -94,26 +94,24 @@ function findItem(config, slackBot, proxy, cb) {
                           var choice = parseInt(result.productSelect);
                           match = foundItems[choice - 1];
                           log(`You selected - "${match.title}`);
-                          return cb(null, match);
-                      });
-                      base_url = config.base_url.replace("/sitemap_products_1.xml", '');
-                      request({
-                          url: `${base_url}/products/${match.handle}.json`,
-                          followAllRedirects: true,
-                          method: 'get',
-                          headers: {
-                              'User-Agent': userAgent
-                          }
-                      }, function(err, res, body) {
-                          if (err) {
-                              log('An error occured...', 'error');
-                              process.exit(1);
-                          } else {
-                              const products = JSON.parse(body);
-                              log(products.product);
-                              match = products.product;
-                              return cb(null, match);
-                          }
+                          base_url = config.base_url.replace("/sitemap_products_1.xml", '');
+                          request({
+                              url: `${base_url}/products/${match.handle}.json`,
+                              followAllRedirects: true,
+                              method: 'get',
+                              headers: {
+                                  'User-Agent': userAgent
+                              }
+                          }, function(err, res, body) {
+                              if (err) {
+                                log('An error occured...', 'error');
+                                process.exit(1);
+                              } else {
+                                const products = JSON.parse(body);
+                                match = products.product;
+                                return cb(null, match);
+                              }
+                          });
                       });
 
                   }
