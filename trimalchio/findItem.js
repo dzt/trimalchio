@@ -23,6 +23,7 @@ function findItem(config, slackBot, proxy, cb) {
     request(
       {
         url: config.base_url,
+        followAllRedirects: true,
         method: 'get',
         headers: {
           'User-Agent': userAgent,
@@ -32,29 +33,96 @@ function findItem(config, slackBot, proxy, cb) {
       function(err, res, body) {
         parseString(body, function(err, result) {
           if (err) {
-            log(
-              'An error occured while trying to parse the sitemap provided',
-              'error'
-            );
+            log('An error occured trying to parse the sitemap', 'error');
             process.exit(1);
-          };
+          } else {
+              var products = result.urlset.url;
 
-          //console.log(result.url[0]);
+              const foundItems = [];
 
-          log('result.length ' + result.length);
-          if (process.env.DEBUG) {
-            fs.writeFile('debug.html', result, function(err) {
-              if (err) {
-                log(err, 'error');
+              let base = config.base_url.replace(/https:\/\//, '').replace(/.com\/sitemap_products_1.xml/, '');
+              for ( let i = 0; i < config.keywords.length; i++ ) {
+                  for ( let x = 0; x < products.length; x++ ) {
+                      while ( products[x]["image:image"] == undefined ) { x++ }
+                      const locTag = products[x].loc[0];
+                      const imageTitle = products[x]["image:image"][0]["image:title"][0];
+                      if ( imageTitle.toLowerCase().indexOf(config.keywords[i].toLowerCase()) > -1 ) {
+                          foundItems.push({title: imageTitle, handle: locTag.replace('https://' + base + '.com/products/', '')});
+                      }
+                  }
               }
-              log(
-                'The file debug.html was saved the root of the project file.'
-              );
-            });
-          }
-        });
-      }
-    );
+
+              if (foundItems.length > 0) {
+                  if (foundItems.length === 1) {
+                      log(`Item Found! - "${foundItems[0].title}"`);
+                      match = foundItems[0];
+                      base_url = config.base_url.replace("/sitemap_products_1.xml", '');
+                      request({
+                          url: `${base_url}/products/${match.handle}.json`,
+                          followAllRedirects: true,
+                          method: 'get',
+                          headers: {
+                              'User-Agent': userAgent
+                          }
+                      }, function(err, res, body) {
+                          if (err) {
+                              log('An error occured...', 'error');
+                              process.exit(1);
+                          } else {
+                              const products = JSON.parse(body);
+                              match = products.product;
+                              return cb(null, match);
+                          }
+                      });
+                  } else {
+
+                      log(`We found more than 1 item matching with the keyword(s) please select the item.\n`, 'warning');
+
+                      for (let i = 0; i < foundItems.length; i++) {
+                          log(`Product Choice #${i + 1}: "${foundItems[i].title}"`);
+                      }
+
+                      prompt.get(
+                        [
+                          {
+                            name: 'productSelect',
+                            required: true,
+                            description: 'Select a Product # (ex: "2")'
+                          }
+                        ],
+                        function(err, result) {
+                          var choice = parseInt(result.productSelect);
+                          match = foundItems[choice - 1];
+                          log(`You selected - "${match.title}`);
+                          return cb(null, match);
+                      });
+                      base_url = config.base_url.replace("/sitemap_products_1.xml", '');
+                      request({
+                          url: `${base_url}/products/${match.handle}.json`,
+                          followAllRedirects: true,
+                          method: 'get',
+                          headers: {
+                              'User-Agent': userAgent
+                          }
+                      }, function(err, res, body) {
+                          if (err) {
+                              log('An error occured...', 'error');
+                              process.exit(1);
+                          } else {
+                              const products = JSON.parse(body);
+                              log(products.product);
+                              match = products.product;
+                              return cb(null, match);
+                          }
+                      });
+
+                  }
+              } else {
+                  return cb('Match not found yet...', null);
+              }
+          };
+        })
+      });
   } else {
     request(
       {

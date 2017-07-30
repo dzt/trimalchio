@@ -21,6 +21,9 @@ let styleID;
 module.exports = {};
 
 function pay(config, slackBot, _match, _styleID) {
+  if (config.base_url.endsWith('.xml')) {
+    config.base_url = config.base_url.replace("/sitemap_products_1.xml", '');
+  }
   match = _match;
   styleID = _styleID;
   request(
