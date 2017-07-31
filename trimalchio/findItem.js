@@ -47,7 +47,7 @@ function findItem(config, slackBot, proxy, cb) {
                       const locTag = products[x].loc[0];
                       const imageTitle = products[x]["image:image"][0]["image:title"][0];
                       if ( imageTitle.toLowerCase().indexOf(config.keywords[i].toLowerCase()) > -1 ) {
-                          foundItems.push({title: imageTitle, handle: locTag.replace('https://' + base + '.com/products/', '')});
+                          foundItems.push({title: imageTitle, handle: locTag});
                       }
                   }
               }
@@ -56,9 +56,8 @@ function findItem(config, slackBot, proxy, cb) {
                   if (foundItems.length === 1) {
                       log(`Item Found! - "${foundItems[0].title}"`);
                       match = foundItems[0];
-                      base_url = config.base_url.replace("/sitemap_products_1.xml", '');
                       request({
-                          url: `${base_url}/products/${match.handle}.json`,
+                          url: match.handle + '.json',
                           followAllRedirects: true,
                           method: 'get',
                           headers: {
@@ -94,9 +93,8 @@ function findItem(config, slackBot, proxy, cb) {
                           var choice = parseInt(result.productSelect);
                           match = foundItems[choice - 1];
                           log(`You selected - "${match.title}`);
-                          base_url = config.base_url.replace("/sitemap_products_1.xml", '');
                           request({
-                              url: `${base_url}/products/${match.handle}.json`,
+                              url: match.handle + '.json',
                               followAllRedirects: true,
                               method: 'get',
                               headers: {
