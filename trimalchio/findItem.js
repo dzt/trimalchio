@@ -105,7 +105,7 @@ function findItem(config, slackBot, proxy, cb) {
                         function(err, result) {
                           var choice = parseInt(result.productSelect);
                           prodPage = foundItems[choice - 1];
-                          log(`You selected - "${match.title}`);
+                          log(`You selected - "${prodPage.title}`);
                           onFoundItem(prodPage.handle, function( err, res ) {
                             if (err) {
                               log('An error occured', 'error');
