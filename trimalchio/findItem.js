@@ -13,10 +13,31 @@ const log = require('../utils/log');
 
 const userAgent =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36';
-let match;
+let prodPage, match;
 let userHasBeenNotifiedEmpty = false;
 
 module.exports = {};
+
+// Takes the found item on sitemap, and goes to product page
+// Allowing to be passed to selectStyle in the same fashion as non xml
+const onFoundItem = function( handle, cb ) {
+  request({
+      url: handle + '.json',
+      followAllRedirects: true,
+      method: 'get',
+      headers: {
+          'User-Agent': userAgent
+      }
+  }, function(err, res, body) {
+    try {
+      const product = JSON.parse(body);
+      prodPage = product.product;
+      return cb(null, prodPage);
+    } catch (e) {
+      return(true, null)
+    }
+  });
+}
 
 function findItem(config, slackBot, proxy, cb) {
   if (config.base_url.endsWith('.xml')) {
@@ -55,30 +76,22 @@ function findItem(config, slackBot, proxy, cb) {
               if (foundItems.length > 0) {
                   if (foundItems.length === 1) {
                       log(`Item Found! - "${foundItems[0].title}"`);
-                      match = foundItems[0];
-                      request({
-                          url: match.handle + '.json',
-                          followAllRedirects: true,
-                          method: 'get',
-                          headers: {
-                              'User-Agent': userAgent
-                          }
-                      }, function(err, res, body) {
-                          if (err) {
-                              log('An error occured...', 'error');
-                              process.exit(1);
-                          } else {
-                              const products = JSON.parse(body);
-                              match = products.product;
-                              return cb(null, match);
-                          }
-                      });
+                      prodPage = foundItems[0];
+                      onFoundItem(prodPage.handle, function( err, res ) {
+                        if (err) {
+                          log('An error occured', 'error');
+                          process.exit(1);
+                        } else {
+                          match = res;
+                          return cb(null, match);
+                        }
+                      })
                   } else {
 
                       log(`We found more than 1 item matching with the keyword(s) please select the item.\n`, 'warning');
 
                       for (let i = 0; i < foundItems.length; i++) {
-                          log(`Product Choice #${i + 1}: "${foundItems[i].title}"`);
+                        log(`Product Choice #${i + 1}: "${foundItems[i].title}"`);
                       }
 
                       prompt.get(
@@ -91,25 +104,17 @@ function findItem(config, slackBot, proxy, cb) {
                         ],
                         function(err, result) {
                           var choice = parseInt(result.productSelect);
-                          match = foundItems[choice - 1];
+                          prodPage = foundItems[choice - 1];
                           log(`You selected - "${match.title}`);
-                          request({
-                              url: match.handle + '.json',
-                              followAllRedirects: true,
-                              method: 'get',
-                              headers: {
-                                  'User-Agent': userAgent
-                              }
-                          }, function(err, res, body) {
-                              if (err) {
-                                log('An error occured...', 'error');
-                                process.exit(1);
-                              } else {
-                                const products = JSON.parse(body);
-                                match = products.product;
-                                return cb(null, match);
-                              }
-                          });
+                          onFoundItem(prodPage.handle, function( err, res ) {
+                            if (err) {
+                              log('An error occured', 'error');
+                              process.exit(1);
+                            } else {
+                              match = res;
+                              return cb(null, match);
+                            }
+                          })
                       });
 
                   }
@@ -286,7 +291,7 @@ function selectStyle(config, slackBot, res, onSuccess) {
       if (config.show_stock == false) {
         stock = 'Disabled';
       } else {
-        findvariantstock(match.handle, match.variants[i].id, function(
+        findvariantstock(config, slackBot, match.handle, match.variants[i].id, function(
           err,
           res
         ) {
@@ -303,7 +308,7 @@ function selectStyle(config, slackBot, res, onSuccess) {
       } else {
         log(
           `Style/Size Choice #${i +
-            1}: "${styleName}" - ${option2} | Stock: (${stock}`
+            1}: "${styleName}" - ${option2} | Stock: (${stock})`
         );
       }
     }
