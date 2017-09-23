@@ -34,13 +34,15 @@ const onFoundItem = function( handle, cb ) {
       prodPage = product.product;
       return cb(null, prodPage);
     } catch (e) {
-      return(true, null)
+      return cb(true, null)
     }
   });
 }
 
 function findItem(config, slackBot, proxy, cb) {
+
   if (config.base_url.endsWith('.xml')) {
+    
     request(
       {
         url: config.base_url,
@@ -48,82 +50,88 @@ function findItem(config, slackBot, proxy, cb) {
         method: 'get',
         headers: {
           'User-Agent': userAgent,
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
         },
+        gzip: true,
         proxy: proxy
       },
       function(err, res, body) {
-        parseString(body, function(err, result) {
+        parseString(body, {trim: true}, function(err, result) {
           if (err) {
+            console.log(err.message)
             log('An error occured trying to parse the sitemap', 'error');
             process.exit(1);
           } else {
-              var products = result.urlset.url;
+            var products = result.urlset.url;
+            const foundItems = [];
 
-              const foundItems = [];
-
-              let base = config.base_url.replace(/https:\/\//, '').replace(/.com\/sitemap_products_1.xml/, '');
-              for ( let i = 0; i < config.keywords.length; i++ ) {
-                  for ( let x = 0; x < products.length; x++ ) {
-                      while ( products[x]["image:image"] == undefined ) { x++ }
-                      const locTag = products[x].loc[0];
-                      const imageTitle = products[x]["image:image"][0]["image:title"][0];
-                      if ( imageTitle.toLowerCase().indexOf(config.keywords[i].toLowerCase()) > -1 ) {
-                          foundItems.push({title: imageTitle, handle: locTag});
-                      }
-                  }
+            let base = config.base_url.replace(/https:\/\//, '').replace(/.com\/sitemap_products_1.xml/, '');
+            for ( let i = 0; i < config.keywords.length; i++ ) {
+              for ( let x = 2100; x < products.length; x++ ) {
+                if ( products[x]["image:image"] !== undefined ) {
+                  const locTag = products[x].loc[0];
+                  const imageTitle = products[x]["image:image"][0]["image:title"][0];
+                  if ( imageTitle.toLowerCase().indexOf(config.keywords[i].toLowerCase()) > -1 ) {
+                    foundItems.push({title: imageTitle, handle: locTag});
+                  } 
+                } else {
+                  console.log(products[x]);
+                  x++
+                }
               }
-
-              if (foundItems.length > 0) {
-                  if (foundItems.length === 1) {
-                      log(`Item Found! - "${foundItems[0].title}"`);
-                      prodPage = foundItems[0];
-                      onFoundItem(prodPage.handle, function( err, res ) {
-                        if (err) {
-                          log('An error occured', 'error');
-                          process.exit(1);
-                        } else {
-                          match = res;
-                          return cb(null, match);
-                        }
-                      })
+            }
+            if (foundItems.length > 0) {
+              if (foundItems.length === 1) {
+                log(`Item Found! - "${foundItems[0].title}"`);
+                prodPage = foundItems[0];
+                onFoundItem(prodPage.handle, function( err, res ) {
+                  if (err) {
+                    log('An error occured', 'error');
+                    process.exit(1);
                   } else {
-
-                      log(`We found more than 1 item matching with the keyword(s) please select the item.\n`, 'warning');
-
-                      for (let i = 0; i < foundItems.length; i++) {
-                        log(`Product Choice #${i + 1}: "${foundItems[i].title}"`);
-                      }
-
-                      prompt.get(
-                        [
-                          {
-                            name: 'productSelect',
-                            required: true,
-                            description: 'Select a Product # (ex: "2")'
-                          }
-                        ],
-                        function(err, result) {
-                          var choice = parseInt(result.productSelect);
-                          prodPage = foundItems[choice - 1];
-                          log(`You selected - "${prodPage.title}`);
-                          onFoundItem(prodPage.handle, function( err, res ) {
-                            if (err) {
-                              log('An error occured', 'error');
-                              process.exit(1);
-                            } else {
-                              match = res;
-                              return cb(null, match);
-                            }
-                          })
-                      });
-
+                    match = res;
+                    return cb(null, match);
                   }
+                })
               } else {
-                  return cb('Match not found yet...', null);
+
+                log(`We found more than 1 item matching with the keyword(s) please select the item.\n`, 'warning');
+                for (let i = 0; i < foundItems.length; i++) {
+                  log(`Product Choice #${i + 1}: "${foundItems[i].title}"`);
+                }
+                prompt.get(
+                  [
+                    {
+                      name: 'productSelect',
+                      required: true,
+                      description: 'Select a Product # (ex: "2")'
+                    }
+                  ], function(err, result) {
+                    var choice = parseInt(result.productSelect);
+                    prodPage = foundItems[choice - 1];
+                    log(`You selected - "${prodPage.title}`);
+                    onFoundItem(prodPage.handle, function( err, res ) {
+                      if (err) {
+                        log('An error occured', 'error');
+                        process.exit(1);
+                      } else {
+                        match = res;
+                        return cb(null, match);
+                      }
+                    })
+                  }
+                );
+
               }
+            } else {
+              return cb('Match not found yet...', null);
+            }
           };
         })
-      });
+      }
+    );
+
   } else {
     request(
       {
