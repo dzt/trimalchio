@@ -42,93 +42,118 @@ const onFoundItem = function( handle, cb ) {
 function findItem(config, slackBot, proxy, cb) {
 
   if (config.base_url.endsWith('.xml')) {
-    
-    request(
-      {
+    let options;
+    if (config.base_url.indexOf('kith') > -1) {
+      options = {
         url: config.base_url,
         followAllRedirects: true,
         method: 'get',
         headers: {
           'User-Agent': userAgent,
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
+          // 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          // 'Accept-Language': 'en-US,en;q=0.5',
+          // 'Accept-Encoding': 'gzip, deflate, br'
         },
         gzip: true,
         proxy: proxy
-      },
+      }
+    } else {
+      options = {
+        url: config.base_url,
+        followAllRedirects: true,
+        method: 'get',
+        headers: {
+          'User-Agent': userAgent
+        },
+        proxy: proxy
+      }
+    }
+    request(options,
       function(err, res, body) {
-        parseString(body, {trim: true}, function(err, result) {
+        parseString(body, function(err, result) {
           if (err) {
             console.log(err.message)
             log('An error occured trying to parse the sitemap', 'error');
             process.exit(1);
           } else {
-            var products = result.urlset.url;
-            const foundItems = [];
+            
+            try {
+              var products = result.urlset.url;
+              const foundItems = [];
 
-            let base = config.base_url.replace(/https:\/\//, '').replace(/.com\/sitemap_products_1.xml/, '');
-            for ( let i = 0; i < config.keywords.length; i++ ) {
-              for ( let x = 2100; x < products.length; x++ ) {
-                if ( products[x]["image:image"] !== undefined ) {
-                  const locTag = products[x].loc[0];
-                  const imageTitle = products[x]["image:image"][0]["image:title"][0];
-                  if ( imageTitle.toLowerCase().indexOf(config.keywords[i].toLowerCase()) > -1 ) {
-                    foundItems.push({title: imageTitle, handle: locTag});
-                  } 
-                } else {
-                  console.log(products[x]);
-                  x++
-                }
-              }
-            }
-            if (foundItems.length > 0) {
-              if (foundItems.length === 1) {
-                log(`Item Found! - "${foundItems[0].title}"`);
-                prodPage = foundItems[0];
-                onFoundItem(prodPage.handle, function( err, res ) {
-                  if (err) {
-                    log('An error occured', 'error');
-                    process.exit(1);
+              let base = config.base_url.replace(/https:\/\//, '').replace(/.com\/sitemap_products_1.xml/, '');
+              for ( let i = 0; i < config.keywords.length; i++ ) {
+                for ( let x = 0; x < products.length; x++ ) {
+                  if ( products[x]["image:image"] !== undefined ) {
+                    const locTag = products[x].loc[0];
+                    const imageTitle = products[x]["image:image"][0]["image:title"][0];
+                    if ( imageTitle.toLowerCase().indexOf(config.keywords[i].toLowerCase()) > -1 ) {
+                      foundItems.push({title: imageTitle, handle: locTag});
+                    } 
                   } else {
-                    match = res;
-                    return cb(null, match);
+                    x++
                   }
-                })
-              } else {
-
-                log(`We found more than 1 item matching with the keyword(s) please select the item.\n`, 'warning');
-                for (let i = 0; i < foundItems.length; i++) {
-                  log(`Product Choice #${i + 1}: "${foundItems[i].title}"`);
                 }
-                prompt.get(
-                  [
-                    {
-                      name: 'productSelect',
-                      required: true,
-                      description: 'Select a Product # (ex: "2")'
-                    }
-                  ], function(err, result) {
-                    var choice = parseInt(result.productSelect);
-                    prodPage = foundItems[choice - 1];
-                    log(`You selected - "${prodPage.title}`);
-                    onFoundItem(prodPage.handle, function( err, res ) {
-                      if (err) {
-                        log('An error occured', 'error');
-                        process.exit(1);
-                      } else {
-                        match = res;
-                        return cb(null, match);
-                      }
-                    })
-                  }
-                );
-
               }
-            } else {
-              return cb('Match not found yet...', null);
+              if (foundItems.length > 0) {
+                if (foundItems.length === 1) {
+                  log(`Item Found! - "${foundItems[0].title}"`);
+                  prodPage = foundItems[0];
+                  onFoundItem(prodPage.handle, function( err, res ) {
+                    if (err) {
+                      log('An error occured', 'error');
+                      process.exit(1);
+                    } else {
+                      match = res;
+                      return cb(null, match);
+                    }
+                  })
+                } else {
+
+                  log(`We found more than 1 item matching with the keyword(s) please select the item.\n`, 'warning');
+                  for (let i = 0; i < foundItems.length; i++) {
+                    log(`Product Choice #${i + 1}: "${foundItems[i].title}"`);
+                  }
+                  prompt.get(
+                    [
+                      {
+                        name: 'productSelect',
+                        required: true,
+                        description: 'Select a Product # (ex: "2")'
+                      }
+                    ], function(err, result) {
+                      var choice = parseInt(result.productSelect);
+                      prodPage = foundItems[choice - 1];
+                      log(`You selected - "${prodPage.title}`);
+                      onFoundItem(prodPage.handle, function( err, res ) {
+                        if (err) {
+                          log('An error occured', 'error');
+                          process.exit(1);
+                        } else {
+                          match = res;
+                          return cb(null, match);
+                        }
+                      });
+                    }
+                  );
+
+                }
+              } else {
+                return cb('Match not found yet...', null);
+              }
+            } catch (e) {
+              if (res.statusCode === 304) {
+                log('Problems capturing full response, retrying...');
+                setTimeout(() => {
+                  findItem(config, slackBot, proxy, cb);
+                }, 1000);
+              } else {
+                log(e);
+                process.exit(1);
+              }
             }
           };
-        })
+        });
       }
     );
 

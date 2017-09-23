@@ -111,8 +111,9 @@ function startBasicMode(slackBot, config) {
 
   findItem(config, slackBot, proxies[index], function(err, res) {
     if (err) {
+      log(err)
       setTimeout(() => {
-        return startBasicMode();
+        return startBasicMode(slackBot, config);
       }, 10000); // delay
     } else {
       selectStyle(config, slackBot, res, (match, styleID) => {
