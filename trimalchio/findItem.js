@@ -15,6 +15,7 @@ const userAgent =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36';
 let prodPage, match;
 let userHasBeenNotifiedEmpty = false;
+let gzipped = false;
 
 module.exports = {};
 
@@ -43,16 +44,13 @@ function findItem(config, slackBot, proxy, cb) {
 
   if (config.base_url.endsWith('.xml')) {
     let options;
-    if (config.base_url.indexOf('kith') > -1) {
+    if (gzipped) {
       options = {
         url: config.base_url,
         followAllRedirects: true,
         method: 'get',
         headers: {
           'User-Agent': userAgent,
-          // 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          // 'Accept-Language': 'en-US,en;q=0.5',
-          // 'Accept-Encoding': 'gzip, deflate, br'
         },
         gzip: true,
         proxy: proxy
@@ -72,11 +70,16 @@ function findItem(config, slackBot, proxy, cb) {
       function(err, res, body) {
         parseString(body, function(err, result) {
           if (err) {
-            console.log(err.message)
-            log('An error occured trying to parse the sitemap', 'error');
-            process.exit(1);
+            if (err.message.indexOf('Non-whitespace') > -1) {
+              gzipped = true;
+              findItem(config, slackBot, proxy, cb);
+            } else {
+              console.log(err.message)
+              log('An error occured trying to parse the sitemap', 'error');
+              process.exit(1);
+            };
           } else {
-            
+
             try {
               var products = result.urlset.url;
               const foundItems = [];
@@ -89,7 +92,7 @@ function findItem(config, slackBot, proxy, cb) {
                     const imageTitle = products[x]["image:image"][0]["image:title"][0];
                     if ( imageTitle.toLowerCase().indexOf(config.keywords[i].toLowerCase()) > -1 ) {
                       foundItems.push({title: imageTitle, handle: locTag});
-                    } 
+                    }
                   } else {
                     x++
                   }
@@ -294,27 +297,22 @@ function selectStyle(config, slackBot, res, onSuccess) {
     if (config.show_stock == false) {
       stock = 'Disabled';
     } else {
-      findvariantstock(
-        config,
-        slackBot,
-        match.handle,
-        match.variants[0].id,
+      findvariantstock(config, slackBot, match.handle, match.variants[0].id,
         function(err, res) {
-          if (err) {
-            log(
-              `Style Selected: "${match.variants[0]
-                .option1}" (${styleID}) | Stock: Unavailable`
-            );
-            onSuccess(match, styleID);
-          } else {
-            log(
-              `Style Selected: "${match.variants[0]
-                .option1}" (${styleID}) | Stock: ${res}`
-            );
-            onSuccess(match, styleID);
-          }
+        if (err) {
+          log(
+            `Style Selected: "${match.variants[0]
+              .option1}" (${styleID}) | Stock: Unavailable`
+          );
+          onSuccess(match, styleID);
+        } else {
+          log(
+            `Style Selected: "${match.variants[0]
+              .option1}" (${styleID}) | Stock: ${res}`
+          );
+          onSuccess(match, styleID);
         }
-      );
+      });
     }
   } else {
     for (let i = 0; i < match.variants.length; i++) {
@@ -324,10 +322,8 @@ function selectStyle(config, slackBot, res, onSuccess) {
       if (config.show_stock == false) {
         stock = 'Disabled';
       } else {
-        findvariantstock(config, slackBot, match.handle, match.variants[i].id, function(
-          err,
-          res
-        ) {
+        findvariantstock(config, slackBot, match.handle, match.variants[i].id,
+          function(err, res) {
           if (err) {
             stock = 'Unavailable';
           } else {
@@ -347,11 +343,17 @@ function selectStyle(config, slackBot, res, onSuccess) {
     }
 
     if (config.slack.active) {
+      let slack_url = '';
       const styleoptions = [];
+      if (config.base_url.endsWith('.xml')) {
+        slack_url = config.base_url.replace("/sitemap_products_1.xml", '');
+      } else {
+        slack_url = config.base_url;
+      }
       for (let j = 0; j < match.variants.length; j++) {
         styleoptions.push({
           name: match.variants[j].option1,
-          text: match.variants[j].option1,
+          text: `<${slack_url}/cart/${match.variants[j].id}:1|${match.variants[j].option1}>`,
           type: 'button',
           value: match.variants[j].id,
         });
