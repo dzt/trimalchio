@@ -73,8 +73,9 @@ function startMenu(slackBot, config) {
       process.exit(1);
     })
     .addItem('Scheduler', function() {
-      setUpScheduling(config);
-      process.exit(1);
+      setUpScheduling(config => {
+        cb(config);
+      });
     })
     .addItem('Proxies', function() {
       log(
@@ -105,15 +106,14 @@ const { findItem, selectStyle } = require('./trimalchio/findItem');
 
 function setUpScheduling(config){
   console.log("alex is testing");
-  prompt.get(
-    [
-      {
-        name: 'timeToRun',
-        required: true,
-        description:
-          'Please enter a time to schedule the Job.',
-      },
-    ]);
+  var prompt = require('prompt');
+  prompt.start();
+
+  prompt.get(['time'], function (err, result) {
+
+  console.log('Command-line input received:');
+  console.log('  time: ' + result.time);
+  });
 }
 
 function startBasicMode(slackBot, config) {
