@@ -1,5 +1,7 @@
 var fs = require('fs');
 var menu = require('node-menu');
+var schedule = require('node-schedule');
+const prompt = require('./utils/prompt');
 
 const log = require('./utils/log');
 const { setupSlackBot } = require('./utils/slack');
@@ -71,10 +73,7 @@ function startMenu(slackBot, config) {
       process.exit(1);
     })
     .addItem('Scheduler', function() {
-      log(
-        'Feature not yet available at the moment. Sorry for the inconvenience.',
-        'error'
-      );
+      setUpScheduling(config);
       process.exit(1);
     })
     .addItem('Proxies', function() {
@@ -103,6 +102,19 @@ var index = 0;
 
 const { pay } = require('./trimalchio/pay');
 const { findItem, selectStyle } = require('./trimalchio/findItem');
+
+function setUpScheduling(config){
+  console.log("alex is testing");
+  prompt.get(
+    [
+      {
+        name: 'timeToRun',
+        required: true,
+        description:
+          'Please enter a time to schedule the Job.',
+      },
+    ]);
+}
 
 function startBasicMode(slackBot, config) {
   if (index >= proxies.length) {
