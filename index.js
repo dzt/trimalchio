@@ -2,6 +2,7 @@ var fs = require('fs');
 var menu = require('node-menu');
 var schedule = require('node-schedule');
 const prompt = require('./utils/prompt');
+const configJSONfile = require('./config.json')
 
 const log = require('./utils/log');
 const { setupSlackBot } = require('./utils/slack');
@@ -73,9 +74,14 @@ function startMenu(slackBot, config) {
       process.exit(1);
     })
     .addItem('Scheduler', function() {
-      setUpScheduling(config => {
-        cb(config);
-      });
+      log('Waiting for the scheduled time of...');
+      log(configJSONfile.schedulingTime);
+      var hourScheduled = String(configJSONfile.schedulingTime).substring(0,2);
+      var minutesScheduled = String(configJSONfile.schedulingTime).substring(3,5);
+      log(minutesScheduled);
+      var time = schedule.scheduleJob(minutesScheduled + ' ' + hourScheduled + ' * * *', function(){
+      startBasicMode(slackBot, config);
+    });
     })
     .addItem('Proxies', function() {
       log(
@@ -103,18 +109,6 @@ var index = 0;
 
 const { pay } = require('./trimalchio/pay');
 const { findItem, selectStyle } = require('./trimalchio/findItem');
-
-function setUpScheduling(config){
-  console.log("alex is testing");
-  var prompt = require('prompt');
-  prompt.start();
-
-  prompt.get(['time'], function (err, result) {
-
-  console.log('Command-line input received:');
-  console.log('  time: ' + result.time);
-  });
-}
 
 function startBasicMode(slackBot, config) {
   if (index >= proxies.length) {
