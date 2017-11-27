@@ -1,5 +1,8 @@
 var fs = require('fs');
 var menu = require('node-menu');
+var schedule = require('node-schedule');
+const prompt = require('./utils/prompt');
+const configJSONfile = require('./config.json')
 
 const log = require('./utils/log');
 const { setupSlackBot } = require('./utils/slack');
@@ -71,11 +74,14 @@ function startMenu(slackBot, config) {
       process.exit(1);
     })
     .addItem('Scheduler', function() {
-      log(
-        'Feature not yet available at the moment. Sorry for the inconvenience.',
-        'error'
-      );
-      process.exit(1);
+      log('Waiting for the scheduled time of...');
+      log(configJSONfile.schedulingTime);
+      var hourScheduled = String(configJSONfile.schedulingTime).substring(0,2);
+      var minutesScheduled = String(configJSONfile.schedulingTime).substring(3,5);
+      log(minutesScheduled);
+      var time = schedule.scheduleJob(minutesScheduled + ' ' + hourScheduled + ' * * *', function(){
+      startBasicMode(slackBot, config);
+    });
     })
     .addItem('Proxies', function() {
       log(
